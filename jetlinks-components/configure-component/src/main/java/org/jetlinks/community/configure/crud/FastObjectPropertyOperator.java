@@ -22,6 +22,7 @@ import org.hswebframework.ezorm.core.GlobalConfig;
 import org.hswebframework.ezorm.core.ObjectPropertyOperator;
 import org.hswebframework.web.bean.FastBeanCopier;
 import org.hswebframework.web.bean.SingleValueMap;
+import org.jetlinks.reactor.ql.utils.CompareUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -51,8 +52,13 @@ public class FastObjectPropertyOperator implements ObjectPropertyOperator {
     }
 
     @Override
+    public int compare(Object left, Object right) {
+        return CompareUtils.compare(left, right);
+    }
+
+    @Override
     public Optional<Object> getProperty(Object source, String key) {
-        if (key.contains(".") || key.contains("[")) {
+        if (key.contains(".") || key.contains("[") || source instanceof Enum<?>) {
             return ApacheCommonPropertyOperator.INSTANCE.getProperty(source, key);
         }
         if (source instanceof Map) {

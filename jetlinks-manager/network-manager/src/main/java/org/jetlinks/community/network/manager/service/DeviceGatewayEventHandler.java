@@ -35,6 +35,8 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 import java.util.List;
 
+import static org.jetlinks.community.network.manager.enums.DeviceGatewayState.enabled;
+
 /**
  * @author wangzheng
  * @since 1.0
@@ -77,34 +79,34 @@ public class DeviceGatewayEventHandler implements CommandLineRunner {
     @EventListener
     public void handlePrepareUpdate(EntityPrepareModifyEvent<DeviceGatewayEntity> event) {
         putGatewayInfo(event.getAfter());
-        event.async(gatewayConfigValidate(event.getBefore()));
+        event.async(gatewayConfigValidate(event.getAfter()));
     }
 
     @EventListener
     public void handleGatewayDelete(EntityBeforeDeleteEvent<DeviceGatewayEntity> event) {
         //删除网关时检测是否已被使用
         event.async(
-            Flux.fromIterable(event.getEntity())
-                .flatMap(gateway -> referenceManager
-                    .assertNotReferenced(DataReferenceManager.TYPE_DEVICE_GATEWAY, gateway.getId(), "error.device_gateway_referenced"))
+                Flux.fromIterable(event.getEntity())
+                        .flatMap(gateway -> referenceManager
+                                .assertNotReferenced(DataReferenceManager.TYPE_DEVICE_GATEWAY, gateway.getId(), "error.device_gateway_referenced"))
         );
     }
 
     @EventListener
     public void handleCreated(EntityCreatedEvent<DeviceGatewayEntity> event) {
         event.async(
-            reloadGateway(Flux
-                              .fromIterable(event.getEntity())
-                              .filter(gateway -> gateway.getState() == DeviceGatewayState.enabled))
+                reloadGateway(Flux
+                        .fromIterable(event.getEntity())
+                        .filter(gateway -> gateway.getState() == enabled))
         );
     }
 
     @EventListener
     public void handleSaved(EntitySavedEvent<DeviceGatewayEntity> event) {
         event.async(
-            reloadGateway(Flux
-                              .fromIterable(event.getEntity())
-                              .filter(gateway -> gateway.getState() == DeviceGatewayState.enabled))
+                reloadGateway(Flux
+                        .fromIterable(event.getEntity())
+                        .filter(gateway -> gateway.getState() == enabled))
         );
     }
 
@@ -112,28 +114,28 @@ public class DeviceGatewayEventHandler implements CommandLineRunner {
     @EventListener
     public void handleModify(EntityModifyEvent<DeviceGatewayEntity> event) {
         event.async(
-            Mono.deferContextual(ctx -> {
-                if (ctx.getOrEmpty(DO_NOT_RELOAD_GATEWAY).isPresent()) {
-                    return Mono.empty();
-                }
-                return reloadGateway(Flux
-                                         .fromIterable(event.getAfter())
-                                         .filter(gateway -> gateway.getState() == DeviceGatewayState.enabled));
-            })
+                Mono.deferContextual(ctx -> {
+                    if (ctx.getOrEmpty(DO_NOT_RELOAD_GATEWAY).isPresent()) {
+                        return Mono.empty();
+                    }
+                    return reloadGateway(Flux
+                            .fromIterable(event.getAfter())
+                            .filter(gateway -> gateway.getState() == enabled));
+                })
         );
     }
 
     private Mono<Void> reloadGateway(Flux<org.jetlinks.community.network.manager.entity.DeviceGatewayEntity> gatewayEntities) {
         return gatewayEntities
-            .flatMap(gateway -> deviceGatewayManager.reload(gateway.getId()))
-            .then();
+                .flatMap(gateway -> deviceGatewayManager.reload(gateway.getId()))
+                .then();
     }
 
     private void putGatewayInfo(List<DeviceGatewayEntity> entities) {
         for (DeviceGatewayEntity entity : entities) {
             DeviceGatewayProvider provider = deviceGatewayManager
-                .getProvider(entity.getProvider())
-                .orElse(null);
+                    .getProvider(entity.getProvider())
+                    .orElse(null);
             if (provider == null) {
                 continue;
             }
@@ -162,15 +164,15 @@ public class DeviceGatewayEventHandler implements CommandLineRunner {
     // 检验网关配置参数
     private Mono<Void> gatewayConfigValidate(List<DeviceGatewayEntity> entityList) {
         return Flux.fromIterable(entityList)
-                   .filter(entity -> entity.getConfiguration() != null)
-                   .flatMap(entity ->
-                                Mono.justOrEmpty(deviceGatewayManager.getProvider(entity.getProvider()))
-                                    //当分布式部署时,每个服务支持的网关可能不同.
+                .filter(entity -> entity.getConfiguration() != null && entity.getState() == enabled)
+                .flatMap(entity ->
+                        Mono.justOrEmpty(deviceGatewayManager.getProvider(entity.getProvider()))
+                                //当分布式部署时,每个服务支持的网关可能不同.
 //                                    .switchIfEmpty(Mono.error(
 //                                        () -> new UnsupportedOperationException("error.unsupported_device_gateway_provider")
 //                                    ))
-                                    .flatMap(gatewayProvider -> gatewayProvider.createDeviceGateway(entity.toProperties())))
-                   .then();
+                                .flatMap(gatewayProvider -> gatewayProvider.createDeviceGateway(entity.toProperties())))
+                .then();
     }
 
     @Override

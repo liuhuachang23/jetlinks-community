@@ -184,10 +184,16 @@ class DeviceMessageMeasurement extends StaticMeasurement {
                 .sum("count")
                 .groupBy(parameter.getInterval("interval", parameter.getInterval("time", null)),
                          parameter.getString("format").orElse("MM月dd日 HH时"))
-                .filter(query -> query
-                    .where("name", "message-count")
-                    .is("productId", parameter.getString("productId").orElse(null))
-                )
+                .filter(query -> {
+                    query.where("name", "message-count");
+                    parameter.get("productId", Object.class).ifPresent(productId -> {
+                        if (productId instanceof Iterable) {
+                            query.in("productId", (Iterable<?>) productId);
+                        } else {
+                            query.is("productId", productId);
+                        }
+                    });
+                })
                 .limit(parameter.getInt("limit").orElse(1))
                 .from(parameter
                           .getDate("from")

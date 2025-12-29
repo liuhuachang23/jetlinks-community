@@ -1,9 +1,9 @@
 server:
-    port: 8848
+    port: 8858
 
 spring:
     profiles:
-        active: dev
+        active: local # default,dev,local
     application:
         name: jetlinks-platform
     jackson:
@@ -19,45 +19,66 @@ spring:
             static-locations: file:./static/,/,classpath:/META-INF/resources/,classpath:/resources/,classpath:/static/, classpath:/public/
     data:
         redis:
-            host: 127.0.0.1
-            port: 6379
-            lettuce:
-                pool:
-                    max-active: 1024
+            host: ${REDIS_HOST}
+            port: ${REDIS_PORT}
             timeout: 20s
-        #    database: 3
+            database: ${REDIS_DATABASE}
+            password: ${REDIS_PASSWORD}
     #        max-wait: 10s
     r2dbc:
         # 需要手动创建数据库,启动会自动创建表,修改了配置easyorm相关配置也要修改
-        url: r2dbc:postgresql://127.0.0.1:5432/jetlinks
-        #    url: r2dbc:mysql://127.0.0.1:3306/jetlinks?ssl=false&serverZoneId=Asia/Shanghai # 修改了配置easyorm相关配置也要修改
-        username: postgres
-        password: jetlinks
+        url: r2dbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_DATABASE}
+        # 如果需要切换为mysql,请同时禁用timescaledb.enabled=false或者单独配置timescaledb.r2dbc.url
+        # 如果需要使用elasticsearch,请勾选es7x profile或者手动引入es依赖,具体在pom.xml搜索es7x.并配置elasticsearch相关配置
+        # 数据库说明: https://hanta.yuque.com/px7kg1/dev/tw77qae6b08bcdfh
+        # 注意:切换了数据库easyorm相关配置也要修改
+        # url: r2dbc:mysql://${DB_HOST}:${DB_PORT}/${DB_DATABASE}?sslMode=REQUIRED&&serverZoneId=Asia/Shanghai
+        username: ${DB_USERNAME}
+        password: ${DB_PASSWORD}
         pool:
             max-size: 128
             max-idle-time: 2m # 值不能大于mysql server的wait_timeout配置
             max-life-time: 10m
             max-acquire-time: 30s
+
+    rabbitmq: # 开启了device.message.writer.rabbitmq.enabled=true时生效
+        host: ${RABBITMQ_HOST}
+        port: ${RABBITMQ_PORT}
+        username: ${RABBITMQ_USER_NAME}
+        password: ${RABBITMQ_PASSWORD}
+        virtual-host: /
+    kafka: # 开启了device.message.writer.kafka.enabled=true时生效
+        consumer:
+            client-id: ${spring.application.name}-consumer:${server.port}
+            group-id: ${spring.application.name}
+            max-poll-records: 1000
+        producer:
+            client-id: ${spring.application.name}-producer:${server.port}
+            acks: 1
+            retries: 3
+        bootstrap-servers: [ "192.168.1.155:9092" ]
     reactor:
         debug-agent:
             enabled: false
+    # 引入elasticsearch相关模块后使用elasticsearch来存储设备、时序、日志等数据
     elasticsearch:
-        uris: 127.0.0.1:9200
+        uris: ${ES_URIS}
         socket-timeout: 10s
         connection-timeout: 15s
-#        password:
-#        username:
+        username: ${ES_USERNAME:""}
+        password: ${ES_PASSWORD:""}
 easyorm:
-    default-schema: public # 数据库默认的schema
-    dialect: postgres #数据库方言
+    default-schema: ${DB_SCHEMA} # 数据库默认的schema,mysql时则为数据库名.(注意大小写,请勿使用-等特殊字符)
+    dialect: ${DB_DIALECT} #数据库方言
 timescaledb:
+    # 默认使用timescaledb来存储设备数据,如果使用mysql,需要设置为false 或 配置shared-spring为false以及r2dbc相关配置.
     enabled: true
     shared-spring: true # 默认共享spring的连接
-    #    r2dbc:
-    #        url: r2dbc:postgresql://localhost:15432/jetlinks
-    #        username: postgres
-    #        password: p@ssw0rd
-    schema: ${easyorm.default-schema}
+#    r2dbc:  # 这里仅支持timescaledb,请勿修改成其他数据库.
+#        url: r2dbc:postgresql://${POSTGRESQL_HOST}:${POSTGRESQL_PORT}/${POSTGRESQL_DATABASE}
+#        username: ${POSTGRESQL_USERNAME}
+#        password: ${POSTGRESQL_PASSWORD}
+    schema: ${TIMESCALEDB_SCHEMA:${easyorm.default-schema}} # timescaledb的schema,默认public
     time-series:
         enabled: true
         retention-policies:
@@ -90,6 +111,27 @@ device:
         writer:
             time-series:
                 enabled: true #对设备数据进行持久化
+            kafka:
+                enabled: false  # 推送设备消息到kafka
+                consumer: true  # 从kafka订阅消息并写入到时序数据库
+                topic-name: device.message
+                #        type:
+                #          excludes:
+                #          includes:
+            rabbitmq:
+                enabled: false  # 推送设备消息到rabbitMQ
+                consumer: true  # 从rabbitMQ订阅消息并写入到时序数据库
+                thread-size: 4 # 消费线程数
+                auto-ack: true  # 自定应答,为true可能导致数据丢失,但是性能最高。
+                topic-name: device.message  # exchange名称
+                #        type:
+                #          excludes:
+                #          includes:
+    entity:
+        writer:
+            kafka:
+                enabled: false  # 推送设备实体到kafka
+                topic-name: device.entity
 
 captcha:
     enabled: false # 开启验证码
@@ -117,6 +159,8 @@ hsweb:
     #    allopatric-login-modes:
     #      app: offlineOther
     permission:
+        initialize:
+            enabled-dimensions: api-client
         filter:
             enabled: true # 设置为true开启权限过滤,赋权时,不能赋予比自己多的权限.
             exclude-username: admin # admin用户不受上述限制
@@ -130,6 +174,8 @@ file:
         storage-base-path: ./data/files
 api:
     # 访问api接口的根地址
+    urls:
+        big-screen-path: http://localhost:9002/
     base-path: http://${EXTERNAL_HOST:127.0.0.1}:${EXTERNAL_PORT:${server.port}}
 
 jetlinks:
@@ -151,7 +197,7 @@ jetlinks:
         enabled: true
         users: # 系统初始用户密码
             -   username: admin
-                password: ${ADMIN_USER_PASSWORD:JetLinks.C0mmVn1ty}
+                password: ${ADMIN_USER_PASSWORD:Admin123!}
                 name: Administrator
                 type: admin
 rule:
@@ -160,6 +206,7 @@ rule:
         server-name: ${spring.application.name}
 logging:
     level:
+        # org.springframework.boot.autoconfigure: debug
         org.jetlinks: debug
         rule.engine: debug
         org.hswebframework: debug
@@ -185,7 +232,19 @@ logging:
         "org.jetlinks.community.timescaledb.impl.DefaultTimescaleDBDataWriter": warn
         "io.scalecube": warn
         "org.jetlinks.community.things.data": warn
-    config: classpath:logback-spring.xml
+        "org.hswebframework.web.starter.i18n": warn
+    logback:
+        rollingpolicy:
+            max-file-size: 100MB
+            max-history: 7
+            total-size-cap: 10GB
+    file:
+        name: ./data/logs/${spring.application.name}_${server.port}.log
+        path: ./data/logs
+    threshold:
+        file: INFO # 文件只记录INFO以上的日志
+        console: TRACE
+        event: WARN # 只记录WARN以上的日志到系统日志中
 vertx:
     max-event-loop-execute-time-unit: seconds
     max-event-loop-execute-time: 30
@@ -279,13 +338,14 @@ springdoc:
                 - org.jetlinks.community.io.file.web
                 - org.hswebframework.web.authorization.basic.web
                 - org.jetlinks.community.logging.controller
+#                - org.jetlinks.community.openapi.manager.web
     cache:
         disabled: false
 network:
     resources:
         - 1883-1890
         - 8800-8810
-        - 5060-5061
+
 trace:
     # 开启链路追踪
     enabled: true
@@ -298,3 +358,26 @@ trace:
         - "/java/TimeSeriesMessageWriterConnector/writeDeviceMessageToTs"
         - "/java/DeviceStatusMeasurementProvider/incrementOnline"
         - "/java/DeviceMessageMeasurementProvider/incrementMessage"
+
+messaging:
+    mqtt:
+        enabled: true #开启mqtt订阅消息支持
+        port: 11883 # 端口
+        host: 0.0.0.0 #绑定网卡
+
+sso:
+    token-set-page-url: http://localhost:5173/jetlinks/token-set.html # 设置token的地址,此地址将参数中的token设置到本地,然后跳转到首页
+    bind-page-url: http://localhost:5173/#/user/login # 和第三方用户绑定的地址,通常就是登录本平台的地址.
+    base-url: http://localhost:8848 #访问平台的根地址
+
+    oauth2:
+        # Gitee 配置（开源中国）
+        - id: gitee
+          name: Gitee
+          client-id: 1e8bb793edad926164ea22672e783a8404085127a85c3b32de341029e4f8cb87
+          client-secret: 35439893ab868fbdcf705e7c92ae892e2c59878614b197237fefda5a1d7b1da2
+          authorize-url: https://gitee.com/oauth/authorize # 跳转登录的地址
+          token-url: https://gitee.com/oauth/token  # 获取token的接口
+          user-info-url: https://gitee.com/api/v5/user # 获取用户信息的接口
+          user-id-property: login  # 用户信息接口返回json中用户id的字段
+          redirect-uri: http://localhost:8848/sso/gitee/notify # 申请token时传入的重定向地址,与OAuth2平台配置一致

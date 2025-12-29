@@ -15,6 +15,7 @@
         <module>network-component</module>
         <module>gateway-component</module>
         <module>io-component</module>
+        <module>messaging-component</module>
         <module>elasticsearch-component</module>
         <module>timeseries-component</module>
         <module>dashboard-component</module>

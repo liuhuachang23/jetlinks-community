@@ -51,7 +51,7 @@ public class DefaultThingsDataRepository implements ThingsDataRepository, Things
     private String defaultPolicy = "default-row";
 
     private ThingsDataRepositoryStrategy.OperationsContext defaultContext = new ThingsDataRepositoryStrategy.OperationsContext(
-        MetricBuilder.DEFAULT, new DataSettings()
+            MetricBuilder.DEFAULT, new DataSettings()
     );
 
     public DefaultThingsDataRepository(ThingsRegistry registry) {
@@ -61,32 +61,32 @@ public class DefaultThingsDataRepository implements ThingsDataRepository, Things
     private ThingsDataRepositoryStrategy getPolicyNow(String policy) {
         ThingsDataRepositoryStrategy dataPolicy = policies.get(policy);
         if (dataPolicy == null) {
-            throw new I18nSupportException("error.thing_data_policy_unsupported", policy);
+            throw new I18nSupportException.NoStackTrace("error.thing_data_policy_unsupported", policy);
         }
         return dataPolicy;
     }
 
     private Mono<Tuple2<String, ThingsDataRepositoryStrategy>> getPolicyByThing(String thingType, String thingId) {
         return registry
-            .getThing(thingType, thingId)
-            .flatMap(thing -> Mono
-                .zip(
-                    thing.getTemplate().map(ThingTemplate::getId),
-                    thing
-                        .getConfig(ThingsDataConstants.storePolicyConfigKey)
-                        .defaultIfEmpty(defaultPolicy)
-                        .map(this::getPolicyNow)
-                )
-            );
+                .getThing(thingType, thingId)
+                .flatMap(thing -> Mono
+                        .zip(
+                                thing.getTemplate().map(ThingTemplate::getId),
+                                thing
+                                        .getConfig(ThingsDataConstants.storePolicyConfigKey)
+                                        .defaultIfEmpty(defaultPolicy)
+                                        .map(this::getPolicyNow)
+                        )
+                );
     }
 
     private Mono<ThingsDataRepositoryStrategy> getPolicyByTemplate(String thingType, String templateId) {
         return registry
-            .getTemplate(thingType, templateId)
-            .flatMap(template -> template
-                .getConfig(ThingsDataConstants.storePolicyConfigKey)
-                .defaultIfEmpty(defaultPolicy))
-            .map(this::getPolicyNow);
+                .getTemplate(thingType, templateId)
+                .flatMap(template -> template
+                        .getConfig(ThingsDataConstants.storePolicyConfigKey)
+                        .defaultIfEmpty(defaultPolicy))
+                .map(this::getPolicyNow);
     }
 
     @Override
@@ -98,17 +98,17 @@ public class DefaultThingsDataRepository implements ThingsDataRepository, Things
     public Mono<ThingOperations> opsForThing(String thingType, String thingId) {
 
         return this
-            .getPolicyByThing(thingType, thingId)
-            .map((tp2) -> tp2
-                .getT2()
-                .opsForThing(thingType, tp2.getT1(), thingId, contexts.getOrDefault(thingType, defaultContext)));
+                .getPolicyByThing(thingType, thingId)
+                .map((tp2) -> tp2
+                        .getT2()
+                        .opsForThing(thingType, tp2.getT1(), thingId, contexts.getOrDefault(thingType, defaultContext)));
     }
 
     @Override
     public Mono<TemplateOperations> opsForTemplate(String thingType, String templateId) {
         return this
-            .getPolicyByTemplate(thingType, templateId)
-            .map(policy -> policy.opsForTemplate(thingType, templateId, contexts.getOrDefault(thingType, defaultContext)));
+                .getPolicyByTemplate(thingType, templateId)
+                .map(policy -> policy.opsForTemplate(thingType, templateId, contexts.getOrDefault(thingType, defaultContext)));
     }
 
     @Override
@@ -158,8 +158,8 @@ public class DefaultThingsDataRepository implements ThingsDataRepository, Things
     @Override
     public Mono<Void> save(ThingMessage thingMessage) {
         return doSave(thingMessage.getThingType(),
-                      thingMessage.getThingId(),
-                      opt -> opt.save(thingMessage));
+                thingMessage.getThingId(),
+                opt -> opt.save(thingMessage));
     }
 
     @Override
@@ -170,14 +170,14 @@ public class DefaultThingsDataRepository implements ThingsDataRepository, Things
     @Override
     public Mono<Void> save(Publisher<? extends ThingMessage> thingMessage) {
         return Flux.from(thingMessage)
-                   .groupBy(msg -> Tuples.of(msg.getThingType(), msg.getThingId()))
-                   .flatMap(group -> doSave(group.key().getT1(), group.key().getT2(), opt -> opt.save(group)))
-                   .then();
+                .groupBy(msg -> Tuples.of(msg.getThingType(), msg.getThingId()))
+                .flatMap(group -> doSave(group.key().getT1(), group.key().getT2(), opt -> opt.save(group)))
+                .then();
     }
 
     private Mono<Void> doSave(String thingType, String thingId, Function<SaveOperations, Mono<Void>> opt) {
         return this
-            .getPolicyByThing(thingType, thingId)
-            .flatMap((tp2) -> opt.apply(tp2.getT2().opsForSave(contexts.getOrDefault(thingType, defaultContext))));
+                .getPolicyByThing(thingType, thingId)
+                .flatMap((tp2) -> opt.apply(tp2.getT2().opsForSave(contexts.getOrDefault(thingType, defaultContext))));
     }
 }

@@ -56,7 +56,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 public class PluginDeviceGatewayProvider extends CompositeProtocolSupport
-    implements DeviceGatewayProvider, DeviceSessionProvider {
+        implements DeviceGatewayProvider, DeviceSessionProvider {
 
     public static final String CHANNEL_PLUGIN = PluginTransport.plugin.getId();
 
@@ -94,50 +94,50 @@ public class PluginDeviceGatewayProvider extends CompositeProtocolSupport
 
         //状态检查
         setDeviceStateChecker(
-            device -> device
+                device -> device
+                        .getConfig(PropertyConstants.accessId)
+                        .mapNotNull(plugins::get)
+                        .flatMap(plugin -> {
+                            //转换为插件侧的设备操作接口
+                            return PluginUtils
+                                    .transformToExternalDevice(idMapper, plugin, device)
+                                    .flatMap(plugin::getDeviceState);
+                        })
+        );
+
+        //监听设备注册
+        doOnDeviceRegister(device -> device
                 .getConfig(PropertyConstants.accessId)
                 .mapNotNull(plugins::get)
                 .flatMap(plugin -> {
                     //转换为插件侧的设备操作接口
                     return PluginUtils
-                        .transformToExternalDevice(idMapper, plugin, device)
-                        .flatMap(plugin::getDeviceState);
-                })
-        );
-
-        //监听设备注册
-        doOnDeviceRegister(device -> device
-            .getConfig(PropertyConstants.accessId)
-            .mapNotNull(plugins::get)
-            .flatMap(plugin -> {
-                //转换为插件侧的设备操作接口
-                return PluginUtils
-                    .transformToExternalDevice(idMapper, plugin, device)
-                    .flatMap(plugin::doOnDeviceRegister);
-            }));
+                            .transformToExternalDevice(idMapper, plugin, device)
+                            .flatMap(plugin::doOnDeviceRegister);
+                }));
 
         //监听设备注销
         doOnDeviceUnRegister(device -> device
-            .getConfig(PropertyConstants.accessId)
-            .mapNotNull(plugins::get)
-            .flatMap(plugin -> {
-                //转换为插件侧的设备操作接口
-                return PluginUtils
-                    .transformToExternalDevice(idMapper, plugin, device)
-                    .flatMap(plugin::doOnDeviceUnregister);
-            }));
+                .getConfig(PropertyConstants.accessId)
+                .mapNotNull(plugins::get)
+                .flatMap(plugin -> {
+                    //转换为插件侧的设备操作接口
+                    return PluginUtils
+                            .transformToExternalDevice(idMapper, plugin, device)
+                            .flatMap(plugin::doOnDeviceUnregister);
+                }));
 
 
         //监听产品注册
         doOnProductRegister(product -> product
-            .getConfig(PropertyConstants.accessId)
-            .mapNotNull(plugins::get)
-            .flatMap(plugin -> {
-                //转换为插件侧的设备操作接口
-                return PluginUtils
-                    .transformToExternalProduct(idMapper, plugin, product)
-                    .flatMap(plugin::doOnProductRegister);
-            }));
+                .getConfig(PropertyConstants.accessId)
+                .mapNotNull(plugins::get)
+                .flatMap(plugin -> {
+                    //转换为插件侧的设备操作接口
+                    return PluginUtils
+                            .transformToExternalProduct(idMapper, plugin, product)
+                            .flatMap(plugin::doOnProductRegister);
+                }));
         //session序列化
         DeviceSessionProviders.register(this);
     }
@@ -184,47 +184,47 @@ public class PluginDeviceGatewayProvider extends CompositeProtocolSupport
         ClusterPluginScheduler scheduler = new ClusterPluginScheduler(properties.getId(), monitor);
 
         return driver
-            .createPlugin(
-                properties.getId(),
-                DefaultPluginContext.of(
-                    registry,
-                    new CompositeServiceRegistry(
-                        Arrays.asList(
-                            //在插件中获取注册中心时自动转换ID
-                            new SingleServiceRegistry("deviceRegistry",
-                                                      new ExternalDeviceRegistry(properties.getId(), idMapper, deviceRegistry)),
-                            //命令服务
-                            CommandServiceRegistry.instance(),
-                            //获取其他服务时使用默认的服务注册中心
-                            serviceRegistry
-                        )
-                    ),
-                    new SimplePluginEnvironment(properties),
-                    monitor,
-                    scheduler,
-                    createWorkdir(properties.getId())
-                ))
-            .map(plugin -> {
-                DeviceGatewayPlugin gatewayPlugin = plugin.unwrap(DeviceGatewayPlugin.class);
-                PluginDeviceGateway gateway = new PluginDeviceGateway(gatewayPlugin.getId(), gatewayPlugin);
+                .createPlugin(
+                        properties.getId(),
+                        DefaultPluginContext.of(
+                                registry,
+                                new CompositeServiceRegistry(
+                                        Arrays.asList(
+                                                //在插件中获取注册中心时自动转换ID
+                                                new SingleServiceRegistry("deviceRegistry",
+                                                        new ExternalDeviceRegistry(properties.getId(), idMapper, deviceRegistry)),
+                                                //命令服务
+                                                CommandServiceRegistry.instance(),
+                                                //获取其他服务时使用默认的服务注册中心
+                                                serviceRegistry
+                                        )
+                                ),
+                                new SimplePluginEnvironment(properties),
+                                monitor,
+                                scheduler,
+                                createWorkdir(properties.getId())
+                        ))
+                .map(plugin -> {
+                    DeviceGatewayPlugin gatewayPlugin = plugin.unwrap(DeviceGatewayPlugin.class);
+                    PluginDeviceGateway gateway = new PluginDeviceGateway(gatewayPlugin.getId(), gatewayPlugin);
 
-                plugins.put(gatewayPlugin.getId(), gatewayPlugin);
-                //停止网关时停止所有调度任务
-                gateway.doOnShutdown(scheduler);
-                //移除网关
-                gateway.doOnShutdown(() -> plugins.remove(gatewayPlugin.getId(), gatewayPlugin));
+                    plugins.put(gatewayPlugin.getId(), gatewayPlugin);
+                    //停止网关时停止所有调度任务
+                    gateway.doOnShutdown(scheduler);
+                    //移除网关
+                    gateway.doOnShutdown(() -> plugins.remove(gatewayPlugin.getId(), gatewayPlugin));
 
-                return gateway;
-            });
+                    return gateway;
+                });
     }
 
     @Override
     public Mono<? extends DeviceGateway> createDeviceGateway(DeviceGatewayProperties properties) {
 
         return Mono.defer(() -> driverManager
-            .getDriver(properties.getChannelId())
-            .switchIfEmpty(Mono.error(() -> new BusinessException("error.plugin_driver_does_not_exist", properties.getChannelId())))
-            .flatMap(driver -> createGateway(properties, driver)));
+                .getDriver(properties.getChannelId())
+                .switchIfEmpty(Mono.error(() -> new BusinessException("error.plugin_driver_does_not_exist", properties.getChannelId())))
+                .flatMap(driver -> createGateway(properties, driver)));
 
     }
 
@@ -232,24 +232,24 @@ public class PluginDeviceGatewayProvider extends CompositeProtocolSupport
     public Mono<? extends DeviceGateway> reloadDeviceGateway(DeviceGateway gateway,
                                                              DeviceGatewayProperties properties) {
         return gateway
-            .unwrap(PluginDeviceGateway.class)
-            .shutdown()
-            .then(createDeviceGateway(properties))
-            .flatMap(gate -> gate.startup().thenReturn(gate));
+                .unwrap(PluginDeviceGateway.class)
+                .shutdown()
+                .then(createDeviceGateway(properties))
+                .flatMap(gate -> gate.startup().thenReturn(gate));
     }
 
     @Override
     public Mono<PersistentSession> deserialize(byte[] sessionData, DeviceRegistry registry) {
 
         return Mono
-            .fromCallable(() -> {
-                try (ObjectInput input = Serializers
-                    .getDefault()
-                    .createInput(new ByteArrayInputStream(sessionData))) {
-                    return PluginDeviceSession.read(input, registry, idMapper,plugins::get);
-                }
-            })
-            .flatMap(Function.identity());
+                .fromCallable(() -> {
+                    try (ObjectInput input = Serializers
+                            .getDefault()
+                            .createInput(new ByteArrayInputStream(sessionData))) {
+                        return PluginDeviceSession.read(input, registry, idMapper,plugins::get);
+                    }
+                })
+                .flatMap(Function.identity());
     }
 
 
@@ -295,19 +295,19 @@ public class PluginDeviceGatewayProvider extends CompositeProtocolSupport
             }
 
             return context
-                .reply(
-                    device
-                        // 设备接入网关ID就是插件ID
-                        .getConfig(PropertyConstants.accessId)
-                        .mapNotNull(plugins::get)
-                        .switchIfEmpty(Mono.error(() -> new DeviceOperationException
-                            .NoStackTrace(ErrorCode.SERVER_NOT_AVAILABLE, "error.plugin_not_found")))
-                        .flatMapMany(plugin -> PluginUtils
-                            .transformToExternalMessage(idMapper, plugin, ((DeviceMessage) message).copy())
-                            .flatMapMany(plugin.unwrap(DeviceGatewayPlugin.class)::execute)
-                            .flatMap(reply -> PluginUtils.transformToInternalMessage(idMapper, plugin, reply.copy())))
-                )
-                .then(Mono.empty());
+                    .reply(
+                            device
+                                    // 设备接入网关ID就是插件ID
+                                    .getConfig(PropertyConstants.accessId)
+                                    .mapNotNull(plugins::get)
+                                    .switchIfEmpty(Mono.error(() -> new DeviceOperationException
+                                            .NoStackTrace(ErrorCode.SERVER_NOT_AVAILABLE, "error.plugin_not_found")))
+                                    .flatMapMany(plugin -> PluginUtils
+                                            .transformToExternalMessage(idMapper, plugin, ((DeviceMessage) message).copy())
+                                            .flatMapMany(plugin.unwrap(DeviceGatewayPlugin.class)::execute)
+                                            .flatMap(reply -> PluginUtils.transformToInternalMessage(idMapper, plugin, reply.copy())))
+                    )
+                    .then(Mono.empty());
         }
     }
 

@@ -25,6 +25,9 @@ import reactor.core.publisher.Flux;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 这个类是整个外部消息订阅系统的核心协调者，提供了统一的订阅入口和 provider 管理机制。
+ */
 @Component
 public class DefaultMessagingManager implements MessagingManager, BeanPostProcessor {
 

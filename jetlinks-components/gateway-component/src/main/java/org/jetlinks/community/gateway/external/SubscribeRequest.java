@@ -35,6 +35,8 @@ public class SubscribeRequest implements ValueObject {
 
     private Map<String, Object> parameter;
 
+    private boolean shared;
+
     private Authentication authentication;
 
     @Override

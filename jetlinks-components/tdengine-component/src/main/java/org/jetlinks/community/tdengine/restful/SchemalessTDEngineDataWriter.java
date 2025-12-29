@@ -51,13 +51,13 @@ public class SchemalessTDEngineDataWriter implements TDEngineDataWriter, Disposa
         this.database = database;
         if (buffer.isEnabled()) {
             this.buffer = new PersistenceBuffer<String>(
-                BufferSettings.create("tdengine-writer.queue", buffer),
-                null,
-                list -> writeNow(list).thenReturn(false))
-                .name("tdengine")
-                .parallelism(buffer.getParallelism())
-                .retryWhenError(e -> ErrorUtils.hasException(e, WebClientException.class)
-                    || ErrorUtils.hasException(e, IOException.class));
+                    BufferSettings.create("tdengine-writer.queue", buffer),
+                    null,
+                    list -> writeNow(list).thenReturn(false))
+                    .name("tdengine")
+                    .parallelism(buffer.getParallelism())
+                    .retryWhenError(e -> ErrorUtils.hasException(e, WebClientException.class)
+                            || ErrorUtils.hasException(e, IOException.class));
 
             this.buffer.start();
         } else {
@@ -77,9 +77,8 @@ public class SchemalessTDEngineDataWriter implements TDEngineDataWriter, Disposa
         if (buffer == null) {
             return writeNow(Flux.just(convertToLine(point)));
         }
-        buffer.write(convertToLine(point));
 
-        return Mono.empty();
+        return  buffer.writeAsync(convertToLine(point));
     }
 
     @Override
@@ -92,32 +91,32 @@ public class SchemalessTDEngineDataWriter implements TDEngineDataWriter, Disposa
     private Mono<Void> writeNow(Flux<String> lines) {
 
         return client
-            .post()
-            .uri(builder -> builder
-                .path("/influxdb/v1/write")
-                .queryParam("db", database)
-                .build())
-            .body(lines
-                      .map(str -> {
-                          byte[] data = str.getBytes();
-                          return factory
-                              .allocateBuffer(data.length + newLine.length)
-                              .write(data)
-                              .write(newLine);
-                      })
-                , DataBuffer.class)
-            .exchangeToMono(TDEngineUtils::checkExecuteResult)
-            .then();
+                .post()
+                .uri(builder -> builder
+                        .path("/influxdb/v1/write")
+                        .queryParam("db", database)
+                        .build())
+                .body(lines
+                                .map(str -> {
+                                    byte[] data = str.getBytes();
+                                    return factory
+                                            .allocateBuffer(data.length + newLine.length)
+                                            .write(data)
+                                            .write(newLine);
+                                })
+                        , DataBuffer.class)
+                .exchangeToMono(TDEngineUtils::checkExecuteResult)
+                .then();
 
 
     }
 
     private String convertToLine(Point point) {
         return org.influxdb.dto.Point.measurement(point.getMetric())
-                                     .tag((Map) point.getTags())
-                                     .fields(point.getValues())
-                                     .time(point.getTimestamp(), TimeUnit.MILLISECONDS)
-                                     .build()
-                                     .lineProtocol();
+                .tag((Map) point.getTags())
+                .fields(point.getValues())
+                .time(point.getTimestamp(), TimeUnit.MILLISECONDS)
+                .build()
+                .lineProtocol();
     }
 }

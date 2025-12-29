@@ -17,11 +17,16 @@ package org.jetlinks.community.rule.engine.service;
 
 import org.hswebframework.ezorm.core.param.QueryParam;
 import org.hswebframework.web.api.crud.entity.PagerResult;
+import org.hswebframework.web.api.crud.entity.QueryParamEntity;
+import org.jetlinks.community.rule.engine.alarm.AlarmLevelCount;
 import org.jetlinks.community.rule.engine.entity.AlarmHistoryInfo;
 import org.jetlinks.community.timeseries.query.AggregationData;
 import org.jetlinks.community.timeseries.query.AggregationQueryParam;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * 告警历史记录服务
@@ -87,4 +92,10 @@ public interface AlarmHistoryService {
      * @return void
      */
     Mono<Void> save(Mono<AlarmHistoryInfo> historyInfo);
+
+    /**
+     * 统计各告警级别的数量
+     * @return 按告警级别分组的统计结果
+     */
+    Mono<List<AlarmLevelCount>> countByLevel();
 }

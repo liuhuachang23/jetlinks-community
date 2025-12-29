@@ -78,11 +78,11 @@ public class DeviceGatewayHelper {
                                                     Function<DeviceOperator, DeviceSession> sessionBuilder) {
 
         return handleDeviceMessage(message,
-                                   sessionBuilder,
-                                   (ignore) -> {
-                                   },
-                                   () -> {
-                                   });
+                sessionBuilder,
+                (ignore) -> {
+                },
+                () -> {
+                });
     }
 
     /**
@@ -106,11 +106,11 @@ public class DeviceGatewayHelper {
         //设备状态检查,断开设备连接的消息都忽略
         //这些消息属于状态管理,通常是用来自定义子设备状态的,所以这些消息都忽略处理会话
         if (deviceId == null
-            || children instanceof DeviceStateCheckMessage
-            || children instanceof DeviceStateCheckMessageReply
-            || children instanceof DisconnectDeviceMessage
-            || children instanceof DisconnectDeviceMessageReply
-            || children.getHeaderOrDefault(Headers.ignoreSession)) {
+                || children instanceof DeviceStateCheckMessage
+                || children instanceof DeviceStateCheckMessageReply
+                || children instanceof DisconnectDeviceMessage
+                || children instanceof DisconnectDeviceMessageReply
+                || children.getHeaderOrDefault(Headers.ignoreSession)) {
             return;
         }
         //子设备回复失败的也忽略
@@ -128,19 +128,20 @@ public class DeviceGatewayHelper {
             //注销会话一次离线,消息网关转发子设备消息一次
             //先执行移除子设备会话,防止header设置失败
             ctx.before(
-                sessionManager
-                    .remove(childrenId, removeSessionOnlyLocal(children))
-                    .doOnNext(total -> {
-                        //移除了会话会触发离线消息,忽略掉本次的消息.
-                        if (total > 0 && children instanceof DeviceOfflineMessage) {
-                            children.addHeaderIfAbsent(Headers.ignore, true);
-                        }
-                        //没有会话被移除(已经离线),但是手动指定了忽略离线消息.
-                        if (total == 0 && children.getHeaderOrDefault(ignoreIfOffline)) {
-                            children.addHeader(Headers.ignore, true);
-                        }
-                    })
-                    .then()
+                    sessionManager
+                            .remove(childrenId, removeSessionOnlyLocal(children))
+                            .doOnNext(total -> {
+                                //移除了会话会触发离线消息,忽略掉本次的消息.
+                                if (total > 0 && children instanceof DeviceOfflineMessage) {
+                                    children.addHeaderIfAbsent(Headers.ignore, true);
+                                }
+                                //没有会话被移除(已经离线),但是手动指定了忽略离线消息.
+                                if (total == 0 && children.getHeaderOrDefault(ignoreIfOffline)) {
+                                    children.addHeader(Headers.ignore, true);
+                                }
+                            })
+                            .then()
+                            .contextWrite(Context.of(DeviceMessage.class, children))
             );
         } else {
             //子设备上线
@@ -152,41 +153,42 @@ public class DeviceGatewayHelper {
             }
             //子设备会话处理
             Mono<DeviceSession> sessionHandler = children.getHeaderOrDefault(Headers.ignoreSession)
-                ? Mono.empty()
-                : sessionManager
-                .getSession(deviceId)
-                .flatMap(parentSession -> this
-                    .createOrUpdateSession(
-                        childrenId,
-                        children,
-                        child -> {
-                            //新创建了的会话?
-                            return Mono.just(new ChildrenDeviceSession(childrenId, parentSession, child));
-                        },
-                        Mono::empty)
-                    .doOnNext(session -> {
-                        if (session.isWrapFrom(ChildrenDeviceSession.class)) {
-                            ChildrenDeviceSession childrenSession = session.unwrap(ChildrenDeviceSession.class);
-                            //网关发生变化,替换新的上级会话
-                            if (!Objects.equals(deviceId, childrenSession.getParent().getDeviceId())) {
-                                childrenSession.replaceWith(parentSession);
-                            }
-                        }
-                    }));
+                    ? Mono.empty()
+                    : sessionManager
+                    .getSession(deviceId)
+                    .flatMap(parentSession -> this
+                            .createOrUpdateSession(
+                                    childrenId,
+                                    children,
+                                    child -> {
+                                        //新创建了的会话?
+                                        return Mono.just(new ChildrenDeviceSession(childrenId, parentSession, child));
+                                    },
+                                    Mono::empty)
+                            .doOnNext(session -> {
+                                if (session.isWrapFrom(ChildrenDeviceSession.class)) {
+                                    ChildrenDeviceSession childrenSession = session.unwrap(ChildrenDeviceSession.class);
+                                    //网关发生变化,替换新的上级会话
+                                    if (!Objects.equals(deviceId, childrenSession.getParent().getDeviceId())) {
+                                        childrenSession.replaceWith(parentSession);
+                                    }
+                                }
+                            }))
+                    .contextWrite(Context.of(DeviceMessage.class, children));
 
 
             //子设备注册
             if (isDoRegister(children)) {
                 ctx.after(
-                    this
-                        .getDeviceForRegister(children.getDeviceId())
-                        .flatMap(device -> device
-                            //没有配置状态自管理才自动上线
-                            .getSelfConfig(DeviceConfigKey.selfManageState)
-                            .defaultIfEmpty(false)
-                            .filter(Boolean.FALSE::equals))
-                        .flatMap(ignore -> sessionHandler)
-                        .then()
+                        this
+                                .getDeviceForRegister(children.getDeviceId())
+                                .flatMap(device -> device
+                                        //没有配置状态自管理才自动上线
+                                        .getSelfConfig(DeviceConfigKey.selfManageState)
+                                        .defaultIfEmpty(false)
+                                        .filter(Boolean.FALSE::equals))
+                                .flatMap(ignore -> sessionHandler)
+                                .then()
                 );
             } else {
                 ctx.after(sessionHandler.then());
@@ -220,32 +222,32 @@ public class DeviceGatewayHelper {
         //设备离线消息
         else if (message instanceof DeviceOfflineMessage) {
             return sessionManager
-                .remove(deviceId, removeSessionOnlyLocal(message))
-                .flatMap(l -> {
-                    if (l == 0 && !message.getHeaderOrDefault(ignoreIfOffline)) {
-                        return registry
-                            .getDevice(deviceId)
-                            .flatMap(device -> handleMessage(device, message));
-                    }
-                    return Mono.empty();
-                })
-                .then(registry.getDevice(deviceId))
-                .contextWrite(context);
+                    .remove(deviceId, removeSessionOnlyLocal(message))
+                    .flatMap(l -> {
+                        if (l == 0 && !message.getHeaderOrDefault(ignoreIfOffline)) {
+                            return registry
+                                    .getDevice(deviceId)
+                                    .flatMap(device -> handleMessage(device, message));
+                        }
+                        return Mono.empty();
+                    })
+                    .then(registry.getDevice(deviceId))
+                    .contextWrite(context);
         }
         //设备上线消息,不发送到messageHandler,防止设备上线存在重复消息
         else if (message instanceof DeviceOnlineMessage) {
             doHandle = message
-                .getHeader(Headers.force)
-                .orElse(false);
+                    .getHeader(Headers.force)
+                    .orElse(false);
         }
 
         //忽略会话管理,比如一个设备存在多种接入方式时,其中一种接入方式收到的消息设置忽略会话来防止会话冲突
         if (message.getHeaderOrDefault(Headers.ignoreSession)) {
 //            if (!isDoRegister(message)) {
             return ctx
-                .execute(handleMessage(null, message))
-                .then(registry.getDevice(deviceId))
-                .contextWrite(context);
+                    .execute(handleMessage(null, message))
+                    .then(registry.getDevice(deviceId))
+                    .contextWrite(context);
 //            }
 //            return ctx
 //                .execute(Mono.empty())
@@ -258,13 +260,13 @@ public class DeviceGatewayHelper {
         }
 
         return ctx
-            .execute(
-                this
-                    .createOrUpdateSession(deviceId, message, sessionBuilder, deviceNotFoundCallback)
-                    .flatMap(sessionConsumer)
-            )
-            .then(registry.getDevice(deviceId))
-            .contextWrite(context);
+                .execute(
+                        this
+                                .createOrUpdateSession(deviceId, message, sessionBuilder, deviceNotFoundCallback)
+                                .flatMap(sessionConsumer)
+                )
+                .then(registry.getDevice(deviceId))
+                .contextWrite(context);
 //        return this
 //            .createOrUpdateSession(deviceId, message, sessionBuilder, deviceNotFoundCallback)
 //            .flatMap(sessionConsumer)
@@ -275,9 +277,9 @@ public class DeviceGatewayHelper {
 
     private Mono<Void> handleMessage(DeviceOperator device, Message message) {
         return messageHandler
-            .handleMessage(device, message)
-            //转换为empty,减少触发discard
-            .flatMap(ignore -> Mono.empty());
+                .handleMessage(device, message)
+                //转换为empty,减少触发discard
+                .flatMap(ignore -> Mono.empty());
     }
 
     private Mono<DeviceSession> createOrUpdateSession(String deviceId,
@@ -285,51 +287,51 @@ public class DeviceGatewayHelper {
                                                       Function<DeviceOperator, Mono<DeviceSession>> sessionBuilder,
                                                       Supplier<Mono<DeviceOperator>> deviceNotFoundCallback) {
         return sessionManager
-            .getSession(deviceId, false)
-            .filterWhen(DeviceSession::isAliveAsync)
-            .map(old -> {
-                //需要更新会话时才进行更新
-                if (needUpdateSession(old, message)) {
-                    return sessionManager
-                        .compute(deviceId, null, session -> updateSession(session, message, sessionBuilder));
-                }
-                applySessionKeepaliveTimeout(message, old);
-                old.keepAlive();
-                return Mono.just(old);
-            })
-            //会话不存在则尝试创建或者更新
-            .defaultIfEmpty(Mono.defer(() -> sessionManager
-                .compute(deviceId,
-                         createNewSession(
-                             deviceId,
-                             message,
-                             sessionBuilder,
-                             () -> {
-                                 //设备注册
-                                 if (isDoRegister(message)) {
-                                     return this
-                                         .handleMessage(null, message)
-                                         //延迟2秒后尝试重新获取设备并上线
-                                         .then(Mono.delay(Duration.ofSeconds(2)))
-                                         .then(registry.getDevice(deviceId));
-                                 }
-                                 if (deviceNotFoundCallback != null) {
-                                     return deviceNotFoundCallback.get();
-                                 }
-                                 return Mono.empty();
-                             }),
-                         session -> updateSession(session, message, sessionBuilder))))
-            .flatMap(Function.identity())
-            .map(session -> handleSession(message, session));
+                .getSession(deviceId, false)
+                .filterWhen(DeviceSession::isAliveAsync)
+                .map(old -> {
+                    //需要更新会话时才进行更新
+                    if (needUpdateSession(old, message)) {
+                        return sessionManager
+                                .compute(deviceId, null, session -> updateSession(session, message, sessionBuilder));
+                    }
+                    applySessionKeepaliveTimeout(message, old);
+                    old.keepAlive();
+                    return Mono.just(old);
+                })
+                //会话不存在则尝试创建或者更新
+                .defaultIfEmpty(Mono.defer(() -> sessionManager
+                        .compute(deviceId,
+                                createNewSession(
+                                        deviceId,
+                                        message,
+                                        sessionBuilder,
+                                        () -> {
+                                            //设备注册
+                                            if (isDoRegister(message)) {
+                                                return this
+                                                        .handleMessage(null, message)
+                                                        //延迟2秒后尝试重新获取设备并上线
+                                                        .then(Mono.delay(Duration.ofSeconds(2)))
+                                                        .then(registry.getDevice(deviceId));
+                                            }
+                                            if (deviceNotFoundCallback != null) {
+                                                return deviceNotFoundCallback.get();
+                                            }
+                                            return Mono.empty();
+                                        }),
+                                session -> updateSession(session, message, sessionBuilder))))
+                .flatMap(Function.identity())
+                .map(session -> handleSession(message, session));
     }
 
     private Mono<DeviceOperator> getDeviceForRegister(String deviceId) {
         return registry
-            .getDevice(deviceId)
-            .switchIfEmpty(Mono.defer(() -> Mono
-                //延迟2秒，因为自动注册是异步的,收到消息后并不能保证马上可以注册成功.
-                .delay(Duration.ofSeconds(2))
-                .then(registry.getDevice(deviceId))));
+                .getDevice(deviceId)
+                .switchIfEmpty(Mono.defer(() -> Mono
+                        //延迟2秒，因为自动注册是异步的,收到消息后并不能保证马上可以注册成功.
+                        .delay(Duration.ofSeconds(2))
+                        .then(registry.getDevice(deviceId))));
     }
 
     private Mono<DeviceSession> createNewSession(String deviceId,
@@ -337,18 +339,20 @@ public class DeviceGatewayHelper {
                                                  Function<DeviceOperator, Mono<DeviceSession>> sessionBuilder,
                                                  Supplier<Mono<DeviceOperator>> deviceNotFoundCallback) {
         return registry
-            .getDevice(deviceId)
-            .switchIfEmpty(Mono.defer(deviceNotFoundCallback))
-            .flatMap(device -> sessionBuilder
-                .apply(device)
-                .map(newSession -> {
-                    //保持在线，在低功率设备上,可能无法保持长连接,通过keepOnline的header来标识让设备保持在线
-                    if (message.getHeader(Headers.keepOnline).orElse(false)) {
-                        int timeout = message.getHeaderOrDefault(Headers.keepOnlineTimeoutSeconds);
-                        newSession = new KeepOnlineSession(newSession, Duration.ofSeconds(timeout));
-                    }
-                    return newSession;
-                }));
+                .getDevice(deviceId)
+                .switchIfEmpty(Mono.defer(deviceNotFoundCallback))
+                .flatMap(device -> sessionBuilder
+                        .apply(device)
+                        .map(newSession -> {
+                            //保持在线，在低功率设备上,可能无法保持长连接,通过keepOnline的header来标识让设备保持在线
+                            if (message.getHeader(Headers.keepOnline).orElse(false)) {
+                                int timeout = message.getHeaderOrDefault(Headers.keepOnlineTimeoutSeconds);
+                                newSession = new KeepOnlineSession(newSession, Duration.ofSeconds(timeout));
+                            } else {
+                                applySessionKeepaliveTimeout(message,newSession);
+                            }
+                            return newSession;
+                        }));
     }
 
     private Mono<DeviceSession> updateSession(DeviceSession session,
@@ -356,15 +360,15 @@ public class DeviceGatewayHelper {
                                               Function<DeviceOperator, Mono<DeviceSession>> sessionBuilder) {
 
         return session
-            .isAliveAsync()
-            .flatMap(alive -> {
-                //设备会话存活才更新
-                if (alive) {
-                    return updateSession0(session, message, sessionBuilder);
-                }
-                //创建新的会话
-                return createNewSession(message.getDeviceId(), message, sessionBuilder, Mono::empty);
-            });
+                .isAliveAsync()
+                .flatMap(alive -> {
+                    //设备会话存活才更新
+                    if (alive) {
+                        return updateSession0(session, message, sessionBuilder);
+                    }
+                    //创建新的会话
+                    return createNewSession(message.getDeviceId(), message, sessionBuilder, Mono::empty);
+                });
     }
 
     private Mono<DeviceSession> updateSession0(DeviceSession session,
@@ -381,22 +385,22 @@ public class DeviceGatewayHelper {
         if (isKeeOnlineLost(session)) {
             Integer timeoutSeconds = message.getHeaderOrDefault(Headers.keepOnlineTimeoutSeconds);
             after = sessionBuilder
-                .apply(session.getOperator())
-                .map(newSession -> new KeepOnlineSession(newSession, Duration.ofSeconds(timeoutSeconds)));
+                    .apply(session.getOperator())
+                    .map(newSession -> new KeepOnlineSession(newSession, Duration.ofSeconds(timeoutSeconds)));
         }
         applySessionKeepaliveTimeout(message, session);
         session.keepAlive();
         return after == null
-            ? Mono.just(session)
-            : after;
+                ? Mono.just(session)
+                : after;
     }
 
     private DeviceSession handleSession(DeviceMessage message, DeviceSession session) {
         //尝试设置ignoreParent
         if (session.isWrapFrom(KeepOnlineSession.class)) {
             message
-                .getHeader(Headers.keepOnlineIgnoreParent)
-                .ifPresent(session.unwrap(KeepOnlineSession.class)::setIgnoreParent);
+                    .getHeader(Headers.keepOnlineIgnoreParent)
+                    .ifPresent(session.unwrap(KeepOnlineSession.class)::setIgnoreParent);
         }
 
         return session;
@@ -413,9 +417,9 @@ public class DeviceGatewayHelper {
     //设置addHeader("clearAllSession",false); 表示只移除本地会话
     private boolean removeSessionOnlyLocal(DeviceMessage message) {
         return message
-            .getHeader(Headers.clearAllSession)
-            .map(val -> !val)
-            .orElse(false);
+                .getHeader(Headers.clearAllSession)
+                .map(val -> !val)
+                .orElse(false);
     }
 
     //判断是否需要更新会话
@@ -434,14 +438,14 @@ public class DeviceGatewayHelper {
             return false;
         }
         return session.isWrapFrom(LostDeviceSession.class)
-            || !session.unwrap(KeepOnlineSession.class).getParent().isAlive();
+                || !session.unwrap(KeepOnlineSession.class).getParent().isAlive();
     }
 
     //判断是否为设备注册
     private static boolean isDoRegister(DeviceMessage message) {
         return message instanceof DeviceRegisterMessage
-            && message.getHeader(PropertyConstants.deviceName).isPresent()
-            && message.getHeader(PropertyConstants.productId).isPresent();
+                && message.getHeader(PropertyConstants.deviceName).isPresent()
+                && message.getHeader(PropertyConstants.productId).isPresent();
     }
 
 
@@ -459,15 +463,15 @@ public class DeviceGatewayHelper {
                                                     Consumer<DeviceSession> sessionConsumer,
                                                     Supplier<Mono<DeviceOperator>> deviceNotFoundCallback) {
         return this
-            .handleDeviceMessage(
-                message,
-                device -> Mono.justOrEmpty(sessionBuilder.apply(device)),
-                session -> {
-                    sessionConsumer.accept(session);
-                    return Mono.empty();
-                },
-                deviceNotFoundCallback
-            );
+                .handleDeviceMessage(
+                        message,
+                        device -> Mono.justOrEmpty(sessionBuilder.apply(device)),
+                        session -> {
+                            sessionConsumer.accept(session);
+                            return Mono.empty();
+                        },
+                        deviceNotFoundCallback
+                );
 
     }
 
@@ -483,10 +487,10 @@ public class DeviceGatewayHelper {
             return Reactors.ALWAYS_TRUE;
         }
         return registry
-            .getDevice(message.getDeviceId())
-            .flatMap(operator -> operator.getConfig(PropertyConstants.accessId))
-            .map(accessId::equals)
-            .defaultIfEmpty(true);
+                .getDevice(message.getDeviceId())
+                .flatMap(operator -> operator.getConfig(PropertyConstants.accessId))
+                .map(accessId::equals)
+                .defaultIfEmpty(true);
     }
 
 

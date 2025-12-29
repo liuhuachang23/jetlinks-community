@@ -24,10 +24,15 @@ import org.hswebframework.web.api.crud.entity.QueryParamEntity;
 import org.hswebframework.web.authorization.annotation.Authorize;
 import org.hswebframework.web.authorization.annotation.QueryAction;
 import org.hswebframework.web.authorization.annotation.Resource;
+import org.jetlinks.community.rule.engine.alarm.AlarmLevelCount;
 import org.jetlinks.community.rule.engine.entity.AlarmHistoryInfo;
 import org.jetlinks.community.rule.engine.service.AlarmHistoryService;
+import org.jetlinks.community.timeseries.query.AggregationQueryParam;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping(value = "/alarm/history")
@@ -90,4 +95,18 @@ public class AlarmHistoryController {
             .flatMap(alarmHistoryService::queryPager);
     }
 
+    @PostMapping("/_count")
+    @Operation(summary = "告警历史数量查询")
+    @QueryAction
+    @Deprecated
+    public Mono<Long> queryHandleHistoryCount(@RequestBody Mono<QueryParamEntity> query) {
+        return query.flatMap(alarmHistoryService::count);
+    }
+
+    @GetMapping("/level/_count")
+    @Operation(summary = "按告警级别统计数量")
+    @QueryAction
+    public Mono<List<AlarmLevelCount>> countByLevel() {
+        return alarmHistoryService.countByLevel();
+    }
 }

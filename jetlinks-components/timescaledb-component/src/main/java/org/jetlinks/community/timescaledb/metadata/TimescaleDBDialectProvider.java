@@ -59,7 +59,7 @@ public class TimescaleDBDialectProvider implements DialectProvider {
 
         codecFactory
             .register(col -> col.getType().getSqlType() == JDBCType.TIMESTAMP
-                || col.getType().getSqlType() == JDBCType.TIMESTAMP_WITH_TIMEZONE,
+                          || col.getType().getSqlType() == JDBCType.TIMESTAMP_WITH_TIMEZONE,
                       col -> new DateTimeCodec("yyyy-MM-dd HH:mm:ss.SSS", Date.class));
 
         schema.addFeature(codecFactory);

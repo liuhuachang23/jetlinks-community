@@ -24,7 +24,6 @@ import org.jetlinks.community.protocol.monitor.ProtocolMonitorHelper;
 import org.jetlinks.community.reference.DataReferenceManager;
 import org.jetlinks.core.ProtocolSupport;
 import org.jetlinks.core.ProtocolSupports;
-import org.jetlinks.core.cluster.ClusterManager;
 import org.jetlinks.core.event.EventBus;
 import org.jetlinks.core.spi.ServiceContext;
 import org.jetlinks.community.configure.device.DeviceClusterConfiguration;
@@ -53,8 +52,8 @@ public class ProtocolAutoConfiguration {
 
     @Bean
     public LocalProtocolSupportManager protocolSupportManager(DataReferenceManager referenceManager,
-                                                                   ProtocolSupportLoader loader,
-                                                                   ReactiveRepository<ProtocolSupportEntity, String> repository) {
+                                                              ProtocolSupportLoader loader,
+                                                              ReactiveRepository<ProtocolSupportEntity, String> repository) {
         return new LocalProtocolSupportManager(referenceManager, loader, repository);
     }
 

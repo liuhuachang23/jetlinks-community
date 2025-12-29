@@ -18,7 +18,10 @@ package org.jetlinks.community.rule.engine.service;
 import lombok.AllArgsConstructor;
 import org.hswebframework.ezorm.core.param.QueryParam;
 import org.hswebframework.web.api.crud.entity.PagerResult;
+import org.hswebframework.web.api.crud.entity.QueryParamEntity;
 import org.hswebframework.web.bean.FastBeanCopier;
+import org.jetlinks.community.rule.engine.alarm.AlarmLevelCount;
+import org.jetlinks.community.timeseries.query.Aggregation;
 import org.jetlinks.core.metadata.SimplePropertyMetadata;
 import org.jetlinks.core.metadata.types.ArrayType;
 import org.jetlinks.core.metadata.types.DateTimeType;
@@ -38,6 +41,7 @@ import reactor.core.publisher.Mono;
 import javax.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -97,6 +101,24 @@ public class TimeSeriesAlarmHistoryService implements AlarmHistoryService {
         return save(historyInfo.flux());
     }
 
+    @Override
+    public Mono<List<AlarmLevelCount>> countByLevel() {
+        // 创建聚合查询参数
+        AggregationQueryParam param = AggregationQueryParam
+            .of()
+            .agg("level", "count", Aggregation.COUNT) // 按level分组计数
+            .groupBy("level", "level") // 分组字段
+            .limit(5); // 限制最大分组数量
+        return manager
+            .getService(ALARM_HISTORY_METRIC)
+            .aggregation(param)
+            .map(data -> new AlarmLevelCount(
+                data.getInt("level", 0),
+                data.getLong("count", 0L)
+            ))
+            .collectList();
+    }
+
     private TimeSeriesData createData(AlarmHistoryInfo info) {
         Map<String, Object> data = FastBeanCopier.copy(info, new HashMap<>(16));
 
@@ -108,39 +130,39 @@ public class TimeSeriesAlarmHistoryService implements AlarmHistoryService {
     public void init() {
         // 大字符,在某些关系型数据库的实现上,使用longvarchar存储.
         StringType longStringType = new StringType()
-            .expand(ConfigMetadataConstants.maxLength, 8000L);
+                .expand(ConfigMetadataConstants.maxLength, 8000L);
 
         manager.registerMetadata(
-            TimeSeriesMetadata.of(
-                TimeSeriesMetric.of(ALARM_HISTORY_METRIC),
-                SimplePropertyMetadata.of("id", "ID", StringType.GLOBAL),
+                TimeSeriesMetadata.of(
+                        TimeSeriesMetric.of(ALARM_HISTORY_METRIC),
+                        SimplePropertyMetadata.of("id", "ID", StringType.GLOBAL),
 
-                SimplePropertyMetadata.of("alarmConfigId", "告警配置ID", StringType.GLOBAL),
-                SimplePropertyMetadata.of("alarmConfigName", "告警配置名称", StringType.GLOBAL),
-                SimplePropertyMetadata.of("alarmConfigSource", "告警配置来源", StringType.GLOBAL),
+                        SimplePropertyMetadata.of("alarmConfigId", "告警配置ID", StringType.GLOBAL),
+                        SimplePropertyMetadata.of("alarmConfigName", "告警配置名称", StringType.GLOBAL),
+                        SimplePropertyMetadata.of("alarmConfigSource", "告警配置来源", StringType.GLOBAL),
 
-                SimplePropertyMetadata.of("alarmRecordId", "告警记录ID", StringType.GLOBAL),
+                        SimplePropertyMetadata.of("alarmRecordId", "告警记录ID", StringType.GLOBAL),
 
-                SimplePropertyMetadata.of("level", "告警级别", IntType.GLOBAL),
-                SimplePropertyMetadata.of("description", "说明", StringType.GLOBAL),
-                SimplePropertyMetadata.of("alarmTime", "告警时间", DateTimeType.GLOBAL),
+                        SimplePropertyMetadata.of("level", "告警级别", IntType.GLOBAL),
+                        SimplePropertyMetadata.of("description", "说明", StringType.GLOBAL),
+                        SimplePropertyMetadata.of("alarmTime", "告警时间", DateTimeType.GLOBAL),
 
-                SimplePropertyMetadata.of("targetType", "告警目标类型", StringType.GLOBAL),
-                SimplePropertyMetadata.of("targetName", "告警目标名称", StringType.GLOBAL),
-                SimplePropertyMetadata.of("targetId", "告警目标ID", StringType.GLOBAL),
+                        SimplePropertyMetadata.of("targetType", "告警目标类型", StringType.GLOBAL),
+                        SimplePropertyMetadata.of("targetName", "告警目标名称", StringType.GLOBAL),
+                        SimplePropertyMetadata.of("targetId", "告警目标ID", StringType.GLOBAL),
 
-                SimplePropertyMetadata.of("sourceType", "告警来源类型", StringType.GLOBAL),
-                SimplePropertyMetadata.of("sourceName", "告警来源名称", StringType.GLOBAL),
-                SimplePropertyMetadata.of("sourceId", "告警来源ID", StringType.GLOBAL),
+                        SimplePropertyMetadata.of("sourceType", "告警来源类型", StringType.GLOBAL),
+                        SimplePropertyMetadata.of("sourceName", "告警来源名称", StringType.GLOBAL),
+                        SimplePropertyMetadata.of("sourceId", "告警来源ID", StringType.GLOBAL),
 
-                SimplePropertyMetadata.of("alarmInfo", "告警信息", longStringType),
-                SimplePropertyMetadata.of("creatorId", "创建人ID", StringType.GLOBAL),
-                SimplePropertyMetadata.of("termSpec", "告警条件描述", longStringType),
-                SimplePropertyMetadata.of("triggerDesc", "告警触发描述", longStringType),
-                SimplePropertyMetadata.of("actualDesc", "实际触发描述", longStringType),
-                SimplePropertyMetadata.of("bindings", "绑定信息", new ArrayType().elementType(StringType.GLOBAL))
+                        SimplePropertyMetadata.of("alarmInfo", "告警信息", longStringType),
+                        SimplePropertyMetadata.of("creatorId", "创建人ID", StringType.GLOBAL),
+                        SimplePropertyMetadata.of("termSpec", "告警条件描述", longStringType),
+                        SimplePropertyMetadata.of("triggerDesc", "告警触发描述", longStringType),
+                        SimplePropertyMetadata.of("actualDesc", "实际触发描述", longStringType),
+                        SimplePropertyMetadata.of("bindings", "绑定信息", new ArrayType().elementType(StringType.GLOBAL))
 
 
-            )).block(Duration.ofSeconds(10));
+                )).block(Duration.ofSeconds(10));
     }
 }

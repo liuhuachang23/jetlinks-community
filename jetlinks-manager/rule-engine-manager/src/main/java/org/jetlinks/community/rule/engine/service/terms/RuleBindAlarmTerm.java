@@ -78,22 +78,22 @@ public class RuleBindAlarmTerm extends AbstractTermFragmentBuilder {
             sqlFragments.addSql("not");
         }
         sqlFragments
-            .addSql("exists(select 1 from ", getTableName("s_alarm_rule_bind", column), " _bind where _bind.alarm_id =", columnFullName);
+                .addSql("exists(select 1 from ", getTableName("s_alarm_rule_bind", column), " bind_ where bind_.alarm_id =", columnFullName);
 
         sqlFragments
-            .addSql(
-                "and _bind.rule_id in (",
-                bindTerm.ruleId.stream().map(r -> "?").collect(Collectors.joining(",")),
-                ")")
-            .addParameter(bindTerm.ruleId);
+                .addSql(
+                        "and bind_.rule_id in (",
+                        bindTerm.ruleId.stream().map(r -> "?").collect(Collectors.joining(",")),
+                        ")")
+                .addParameter(bindTerm.ruleId);
 
         if (CollectionUtils.isNotEmpty(bindTerm.branchId)) {
             sqlFragments
-                .addSql(
-                    "and _bind.branch_index in (",
-                    bindTerm.branchId.stream().map(r -> "?").collect(Collectors.joining(",")),
-                    ")")
-                .addParameter(bindTerm.branchId);
+                    .addSql(
+                            "and bind_.branch_index in (",
+                            bindTerm.branchId.stream().map(r -> "?").collect(Collectors.joining(",")),
+                            ")")
+                    .addParameter(bindTerm.branchId);
         }
 
         sqlFragments.addSql(")");
@@ -125,8 +125,8 @@ public class RuleBindAlarmTerm extends AbstractTermFragmentBuilder {
                     String[] split = str.split(":");
                     bindTerm.setRuleId(Collections.singletonList(split[0]));
                     bindTerm.setBranchId(ConverterUtils.convertToList(split[1], val -> CastUtils
-                        .castNumber(val)
-                        .intValue()));
+                            .castNumber(val)
+                            .intValue()));
                 } else {
                     bindTerm.setRuleId(Collections.singletonList(str));
                 }

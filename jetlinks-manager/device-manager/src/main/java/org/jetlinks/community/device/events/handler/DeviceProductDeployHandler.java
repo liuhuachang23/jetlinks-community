@@ -69,19 +69,19 @@ public class DeviceProductDeployHandler implements CommandLineRunner {
         this.latestDataService = latestDataService;
         //监听其他服务器上的物模型变更
         disposable = eventBus
-            .subscribe(Subscription
-                           .builder()
-                           .subscriberId("product-metadata-upgrade")
-                           .topics("/_sys/product-upgrade")
-                           .justBroker()
-                           .build(), String.class)
-            .flatMap(id -> this
-                .reloadMetadata(id)
-                .onErrorResume((err) -> {
-                    log.warn("handle product upgrade event error", err);
-                    return Mono.empty();
-                }))
-            .subscribe();
+                .subscribe(Subscription
+                        .builder()
+                        .subscriberId("product-metadata-upgrade")
+                        .topics("/_sys/product-upgrade")
+                        .justBroker()
+                        .build(), String.class)
+                .flatMap(id -> this
+                        .reloadMetadata(id)
+                        .onErrorResume((err) -> {
+                            log.warn("handle product upgrade event error", err);
+                            return Mono.empty();
+                        }))
+                .subscribe();
     }
 
     @PreDestroy
@@ -92,53 +92,53 @@ public class DeviceProductDeployHandler implements CommandLineRunner {
     @EventListener
     public void handlerEvent(DeviceProductDeployEvent event) {
         event.async(
-            this
-                .doRegisterMetadata(event.getId(), event.getMetadata())
-                .then(
-                    eventBus.publish("/_sys/product-upgrade", event.getId())
-                )
+                this
+                        .doRegisterMetadata(event.getId(), event.getMetadata())
+                        .then(
+                                eventBus.publish("/_sys/product-upgrade", event.getId())
+                        )
         );
     }
 
     protected Mono<Void> reloadMetadata(String productId) {
         return productService
-            .findById(productId)
-            .flatMap(product -> doReloadMetadata(productId, product.getMetadata()))
-            .then();
+                .findById(productId)
+                .flatMap(product -> doReloadMetadata(productId, product.getMetadata()))
+                .then();
     }
 
     protected Mono<Void> doReloadMetadata(String productId, String metadataString) {
         return codec
-            .decode(metadataString)
-            .flatMap(metadata -> Flux
-                .concatDelayError(dataService.reloadMetadata(productId, metadata),
-                                 latestDataService.reloadMetadata(productId, metadata))
-                .then());
+                .decode(metadataString)
+                .flatMap(metadata -> Flux
+                        .concatDelayError(dataService.reloadMetadata(productId, metadata),
+                                latestDataService.reloadMetadata(productId, metadata))
+                        .then());
     }
 
     protected Mono<Void> doRegisterMetadata(String productId, String metadataString) {
         return codec
-            .decode(metadataString)
-            .flatMap(metadata -> Flux
-                .concatDelayError(dataService.registerMetadata(productId, metadata),
-                       latestDataService.upgradeMetadata(productId, metadata))
-                .then());
+                .decode(metadataString)
+                .flatMap(metadata -> Flux
+                        .concatDelayError(dataService.registerMetadata(productId, metadata),
+                                latestDataService.upgradeMetadata(productId, metadata))
+                        .then());
     }
 
 
     @Override
     public void run(String... args) {
         productService
-            .createQuery()
-            .fetch()
-            .filter(product -> new Byte((byte) 1).equals(product.getState()))
-            .flatMap(deviceProductEntity -> this
-                .doRegisterMetadata(deviceProductEntity.getId(), deviceProductEntity.getMetadata())
-                .onErrorResume(err -> {
-                    log.warn("register product [{}] metadata error", deviceProductEntity.getId(), err);
-                    return Mono.empty();
-                })
-            )
-            .subscribe();
+                .createQuery()
+                .fetch()
+                .filter(product -> Byte.valueOf((byte) 1).equals(product.getState()))
+                .flatMap(deviceProductEntity -> this
+                        .doRegisterMetadata(deviceProductEntity.getId(), deviceProductEntity.getMetadata())
+                        .onErrorResume(err -> {
+                            log.warn("register product [{}] metadata error", deviceProductEntity.getId(), err);
+                            return Mono.empty();
+                        })
+                )
+                .subscribe();
     }
 }

@@ -18,6 +18,7 @@ package org.jetlinks.community.logging.access;
 
 import org.hswebframework.web.api.crud.entity.PagerResult;
 import org.hswebframework.web.api.crud.entity.QueryParamEntity;
+import org.jetlinks.community.dashboard.MeasurementParameter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -52,4 +53,5 @@ public interface AccessLoggerService {
      */
     Flux<SerializableAccessLog> queryNoPaging(QueryParamEntity queryParam);
 
+    Flux<HttpMethodStats> statsByInterval(MeasurementParameter parameter);
 }

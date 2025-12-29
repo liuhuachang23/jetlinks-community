@@ -62,7 +62,8 @@ import java.util.stream.Stream;
 @Table(name = "dev_device_instance", indexes = {
     @Index(name = "idx_dev_product_id", columnList = "product_id"),
     @Index(name = "idx_dev_parent_id", columnList = "parent_id"),
-    @Index(name = "idx_dev_state", columnList = "state")
+    @Index(name = "idx_dev_state", columnList = "state"),
+    @Index(name = "idx_dev_dev_eui", columnList = "dev_eui")
 })
 @Comment("设备信息表")
 @EnableEntityEvent
@@ -195,6 +196,10 @@ public class DeviceInstanceEntity extends GenericEntity<String> implements Recor
         , accessMode = Schema.AccessMode.READ_ONLY
     )
     private String modifierName;
+
+    @Column(name = "dev_eui", length = 64)
+    @Schema(description = "devEui")
+    private String devEui;
 
     public Optional<Object> getConfiguration(String key) {
         if (configuration == null) {

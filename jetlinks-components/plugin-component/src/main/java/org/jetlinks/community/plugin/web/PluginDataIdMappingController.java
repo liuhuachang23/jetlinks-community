@@ -15,35 +15,45 @@
  */
 package org.jetlinks.community.plugin.web;
 
+import com.alibaba.excel.util.StringUtils;
+import com.alibaba.fastjson.JSON;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.hswebframework.ezorm.rdb.mapping.ReactiveRepository;
 import org.hswebframework.ezorm.rdb.mapping.defaults.SaveResult;
 import org.hswebframework.web.api.crud.entity.QueryParamEntity;
+import org.hswebframework.web.authorization.annotation.DeleteAction;
 import org.hswebframework.web.authorization.annotation.QueryAction;
 import org.hswebframework.web.authorization.annotation.Resource;
 import org.hswebframework.web.authorization.annotation.SaveAction;
 import org.jetlinks.community.plugin.impl.id.PluginDataIdMappingEntity;
 import org.springframework.util.CollectionUtils;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.util.FileCopyUtils;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.File;
+import java.io.FileReader;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 插件数据ID映射.
  *
  * @author zhangji 2023/3/2
  */
+@Slf4j
 @AllArgsConstructor
 @RestController
 @RequestMapping("/plugin/mapping")
@@ -52,6 +62,101 @@ import java.util.List;
 public class PluginDataIdMappingController {
 
     private final ReactiveRepository<PluginDataIdMappingEntity, String> repository;
+
+    /**
+     * 读取原始 JSON 数据
+     */
+//    private static List<Map<String, Object>> readOriginalJson(MultipartFile file) throws Exception {
+//
+//        List<Map<String, Object>> result = new ArrayList<>();
+//
+//        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+//            Sheet sheet = workbook.getSheetAt(0); // 获取第一个工作表
+//
+//            // 假设第一行是标题，从第二行开始读取数据
+//            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+//                Row row = sheet.getRow(i);
+//                if (row == null) continue;
+//
+//                Cell deviceIdCell = row.getCell(0);
+//                Cell externalIdCell = row.getCell(1);
+//
+//                if (deviceIdCell != null && externalIdCell != null) {
+//                    Map<String, Object> mapping = new HashMap<>();
+//
+//                    // 处理deviceId
+//                    if (deviceIdCell.getCellType() == CellType.STRING) {
+//                        mapping.put("deviceId", deviceIdCell.getStringCellValue());
+//                    } else if (deviceIdCell.getCellType() == CellType.NUMERIC) {
+//                        mapping.put("deviceId", String.valueOf((int)deviceIdCell.getNumericCellValue()));
+//                    }
+//
+//                    // 处理externalId
+//                    if (externalIdCell.getCellType() == CellType.STRING) {
+//                        mapping.put("externalId", externalIdCell.getStringCellValue());
+//                    } else if (externalIdCell.getCellType() == CellType.NUMERIC) {
+//                        mapping.put("externalId", String.valueOf(externalIdCell.getNumericCellValue()));
+//                    }
+//
+//                    result.add(mapping);
+//                }
+//            }
+//        }
+//
+//        log.info("解析映射文件数据：{}", JSON.toJSON(result));
+//        return result;
+//    }
+
+    private static List<Map<String, Object>> readOriginalJson(String filePath) throws Exception {
+        File file = new File(filePath);
+        String jsonStr = FileCopyUtils.copyToString(new FileReader(file));
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.readValue(jsonStr, new TypeReference<List<Map<String, Object>>>(){});
+    }
+
+    @PostMapping("/{type}/{pluginId:.+}/batchSave")
+    @Operation(summary = "批量保存数据ID映射")
+    public Mono<Integer> batchSave(@PathVariable @Parameter(description = "插件数据类型") String type,
+                                   @PathVariable @Parameter(description = "插件ID") String pluginId,
+                                   @RequestParam @Parameter(description = "映射文件全路径地址") String filePath
+                                   ) {
+        // 1. 读取JSON数据
+        return Mono.fromCallable(() -> readOriginalJson(filePath))
+                .onErrorResume(e -> {
+                    return Mono.error(new RuntimeException("读取数据文件失败"));
+                })
+                .flatMapMany(Flux::fromIterable)
+                // 2. 处理每条记录
+                .flatMap(item -> {
+                    String deviceId = (String) item.get("deviceId");        //平台设备id
+                    String externalId = (String) item.get("externalId");    //需要映射的现场设备id
+
+                    if (StringUtils.isBlank(deviceId) || StringUtils.isBlank(externalId)) {
+                        return Mono.just(0); // 返回0表示未插入
+                    }
+
+                    // 3. 调用保存接口
+                    return save(type, pluginId, deviceId, Mono.just(externalId))
+                            .thenReturn(1)  // 成功返回1
+                            .onErrorResume(e -> {
+                                return Mono.just(0); // 失败返回0
+                            });
+                }, 5) // 控制并发度
+                // 4. 统计成功插入数量
+                .reduce(0, Integer::sum);
+    }
+
+    @PatchMapping("/{type}/{internalId:.+}")
+    @DeleteAction
+    @Operation(summary = "解除数据ID映射")
+    public Mono<Integer> delete(@PathVariable @Parameter(description = "插件数据类型") String type,
+                                 @PathVariable @Parameter(description = "内部数据ID") String internalId) {
+        return repository
+                .createDelete()
+                .where(PluginDataIdMappingEntity::getInternalId, internalId)
+                .and(PluginDataIdMappingEntity::getType, type)
+                .execute();
+    }
 
     @PatchMapping("/{type}/{pluginId:.+}/{internalId:.+}")
     @SaveAction

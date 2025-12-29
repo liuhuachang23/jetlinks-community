@@ -35,6 +35,10 @@
             <artifactId>timeseries-component</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-mqtt</artifactId>
+        </dependency>
 
     </dependencies>
 

@@ -55,7 +55,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/device/gateway")
-@Resource(id = "device-gateway", name = "网关设备管理")
+@Resource(id = "device-gateway-manager", name = "网关设备管理")
 @Authorize
 @Tag(name = "网关设备管理")
 public class GatewayDeviceController {
@@ -186,11 +186,11 @@ public class GatewayDeviceController {
                 .in(DeviceInstanceEntity::getId, deviceIdList)
                 .execute()
                 .then(registry.getDevice(gatewayId)
-                    .flatMap(gwOperator -> gwOperator.getProtocol()
-                        .flatMap(protocolSupport -> protocolSupport.onChildBind(gwOperator,
-                            Flux.fromIterable(deviceIdList).flatMap(id -> registry.getDevice(id)))
-                        )
-                    )
+                              .flatMap(gwOperator -> gwOperator.getProtocol()
+                                                               .flatMap(protocolSupport -> protocolSupport.onChildBind(gwOperator,
+                                                                                                                       Flux.fromIterable(deviceIdList).flatMap(id -> registry.getDevice(id)))
+                                                               )
+                              )
                 )
             ).then(getGatewayInfo(gatewayId));
     }
@@ -209,11 +209,11 @@ public class GatewayDeviceController {
             .execute()
             .filter(i -> i > 0)
             .then(registry.getDevice(gatewayId)
-                .flatMap(gwOperator -> gwOperator.getProtocol()
-                    .flatMap(protocolSupport -> protocolSupport.onChildUnbind(gwOperator,
-                        Flux.from(registry.getDevice(deviceId)))
-                    )
-                )
+                          .flatMap(gwOperator -> gwOperator.getProtocol()
+                                                           .flatMap(protocolSupport -> protocolSupport.onChildUnbind(gwOperator,
+                                                                                                                     Flux.from(registry.getDevice(deviceId)))
+                                                           )
+                          )
             )
             .then(getGatewayInfo(gatewayId));
     }

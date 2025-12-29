@@ -117,21 +117,21 @@ public interface DeviceGatewayManager {
                                        String commandId,
                                        Mono<Map<String, Object>> body) {
         return (Mono)Mono
-            .zip(
-                this.getGateway(gatewayId)
-                    .filter(gateway -> gateway.isWrapperFor(CommandSupport.class))
-                    .cast(CommandSupport.class),
-                body,
-                (cmd, param) -> cmd.execute(cmd.createCommand(commandId).with(param))
-            )
-            .flatMap(val -> {
-                if (val instanceof Mono) {
-                    return ((Mono<?>) val);
-                }
-                if (val instanceof Flux) {
-                    return ((Flux<?>) val).collectList();
-                }
-                return Mono.just(val);
-            });
+                .zip(
+                        this.getGateway(gatewayId)
+                                .filter(gateway -> gateway.isWrapperFor(CommandSupport.class))
+                                .cast(CommandSupport.class),
+                        body,
+                        (cmd, param) -> cmd.execute(cmd.createCommand(commandId).with(param))
+                )
+                .flatMap(val -> {
+                    if (val instanceof Mono) {
+                        return ((Mono<?>) val);
+                    }
+                    if (val instanceof Flux) {
+                        return ((Flux<?>) val).collectList();
+                    }
+                    return Mono.just(val);
+                });
     }
 }

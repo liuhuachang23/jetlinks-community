@@ -45,30 +45,30 @@ public class PluginDeviceGatewayServiceImpl implements PluginDeviceGatewayServic
                                     DeviceMessage deviceMessage) {
 
         return PluginUtils
-            .transformToInternalMessage(dataIdMapper, plugin, deviceMessage)
-            .flatMap(msg -> handleMessage0(plugin, msg));
+                .transformToInternalMessage(dataIdMapper, plugin, deviceMessage)
+                .flatMap(msg -> handleMessage0(plugin, msg));
     }
 
     private Mono<Void> handleMessage0(DeviceGatewayPlugin deviceGatewayPlugin,
                                       DeviceMessage deviceMessage) {
         return gatewayHelper
-            .handleDeviceMessage(
-                deviceMessage,
-                PluginDeviceSession::new,
-                session -> {
-                    if (session.isWrapFrom(PluginDeviceSession.class)) {
-                        session
-                            .unwrap(PluginDeviceSession.class)
-                            .setIdMapper(dataIdMapper);
-                        session
-                            .unwrap(PluginDeviceSession.class)
-                            .setPlugin(deviceGatewayPlugin);
-                    }
+                .handleDeviceMessage(
+                        deviceMessage,
+                        PluginDeviceSession::new,
+                        session -> {
+                            if (session.isWrapFrom(PluginDeviceSession.class)) {
+                                session
+                                        .unwrap(PluginDeviceSession.class)
+                                        .setIdMapper(dataIdMapper);
+                                session
+                                        .unwrap(PluginDeviceSession.class)
+                                        .setPlugin(deviceGatewayPlugin);
+                            }
 
-                }, () -> {
+                        }, () -> {
 
-                })
-            .then();
+                        })
+                .then();
     }
 
 

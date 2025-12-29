@@ -22,6 +22,7 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.checkerframework.checker.units.qual.K;
 import org.hswebframework.ezorm.rdb.exception.DuplicateKeyException;
 import org.hswebframework.ezorm.rdb.mapping.ReactiveRepository;
 import org.hswebframework.ezorm.rdb.mapping.defaults.SaveResult;
@@ -57,6 +58,7 @@ import org.jetlinks.community.io.excel.AbstractImporter;
 import org.jetlinks.community.io.excel.ImportExportService;
 import org.jetlinks.community.io.file.FileManager;
 import org.jetlinks.community.io.utils.FileUtils;
+import org.jetlinks.community.plugin.impl.id.PluginDataIdMappingEntity;
 import org.jetlinks.community.relation.RelationObjectProvider;
 import org.jetlinks.community.relation.service.RelationService;
 import org.jetlinks.community.relation.service.request.SaveRelationRequest;
@@ -126,6 +128,8 @@ public class DeviceInstanceController implements
 
     private final ReactiveRepository<DeviceTagEntity, String> tagRepository;
 
+    private final ReactiveRepository<PluginDataIdMappingEntity, String> pluginMappingRepository;
+
     private final DeviceDataService deviceDataService;
 
     private final DeviceConfigMetadataManager metadataManager;
@@ -150,6 +154,7 @@ public class DeviceInstanceController implements
                                     LocalDeviceProductService productService,
                                     ImportExportService importExportService,
                                     ReactiveRepository<DeviceTagEntity, String> tagRepository,
+                                    ReactiveRepository<PluginDataIdMappingEntity, String> pluginMappingRepository,
                                     DeviceDataService deviceDataService,
                                     DeviceConfigMetadataManager metadataManager,
                                     RelationService relationService,
@@ -164,6 +169,7 @@ public class DeviceInstanceController implements
         this.productService = productService;
         this.importExportService = importExportService;
         this.tagRepository = tagRepository;
+        this.pluginMappingRepository = pluginMappingRepository;
         this.deviceDataService = deviceDataService;
         this.metadataManager = metadataManager;
         this.relationService = relationService;
@@ -175,6 +181,35 @@ public class DeviceInstanceController implements
         this.queryHelper = queryHelper;
     }
 
+    //通过productId获取设备id
+    @GetMapping("/{productId:.+}/getId")
+    @QueryAction
+    @Operation(summary = "通过productId获取设备id")
+    public Flux<String> getIdByProductId(@PathVariable @Parameter(description = "productId") String productId) {
+        return service
+                .getIdByProductId(productId)
+                .switchIfEmpty(Mono.error(NotFoundException::new));
+    }
+
+    //通过devEUI获取设备id
+    @GetMapping("/{devEUI:.+}/getId")
+    @QueryAction
+    @Operation(summary = "通过devEUI获取设备id")
+    public Mono<String> getIdByDevEUI(@PathVariable @Parameter(description = "devEUI") String devEUI) {
+        return service
+                .getIdByDevEUI(devEUI)
+                .switchIfEmpty(Mono.error(NotFoundException::new));
+    }
+
+    //通过设备id获取devEUI
+    @GetMapping("/{id:.+}/getDevEUI")
+    @QueryAction
+    @Operation(summary = "通过设备id获取devEUI")
+    public Mono<String> getDevEUIById(@PathVariable @Parameter(description = "devEUI") String id) {
+        return service
+                .getDevEUIById(id)
+                .switchIfEmpty(Mono.error(NotFoundException::new));
+    }
 
     //获取设备详情
     @GetMapping("/{id:.+}/detail")
@@ -448,7 +483,22 @@ public class DeviceInstanceController implements
     }
 
     /**
-     * 批量删除设备,只会删除未激活的设备.
+     * 根据ID删除设备，并尝试解除映射
+     *
+     * @param id 设备id
+     * @return 被删除的设备实例
+     */
+    @DeleteMapping("/{id:.+}")
+    @DeleteAction
+    @Operation(summary = "根据ID删除设备，并尝试解除映射")
+    public Mono<DeviceInstanceEntity> delete(@PathVariable String id) {
+        return service.findById(Mono.just(id))
+                .switchIfEmpty(Mono.error(NotFoundException.NoStackTrace::new))
+                .flatMap(device -> service.deleteCore(id).thenReturn(device));
+    }
+
+    /**
+     * 批量删除设备,只会删除未激活的设备. 并尝试解除映射
      *
      * @param idList ID列表
      * @return 被删除数量
@@ -456,11 +506,15 @@ public class DeviceInstanceController implements
      */
     @PutMapping("/batch/_delete")
     @DeleteAction
-    @Operation(summary = "批量删除设备")
+    @Operation(summary = "批量删除设备（仅未激活设备），并尝试解除映射")
     public Mono<Integer> deleteBatch(@RequestBody Mono<List<String>> idList) {
         return idList.flatMapMany(Flux::fromIterable)
-                     .as(service::deleteById);
+                .flatMap(id -> service.findById(Mono.just(id))
+                        .switchIfEmpty(Mono.empty())
+                        .then(service.deleteCore(id)).thenReturn(1))
+                .reduce(0, Integer::sum);
     }
+
 
     /**
      * 批量注销设备

@@ -18,7 +18,6 @@
             <groupId>org.jetlinks.plugin</groupId>
             <artifactId>plugin-internal</artifactId>
         </dependency>
-
         <dependency>
             <groupId>org.jetlinks.community</groupId>
             <artifactId>gateway-component</artifactId>

@@ -15,7 +15,9 @@
  */
 package org.jetlinks.community.configure.redis;
 
+import io.lettuce.core.ClientOptions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.data.redis.LettuceClientConfigurationBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -30,6 +32,21 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 public class RedisSerializationConfiguration {
 
     @Bean
+    public LettuceClientConfigurationBuilderCustomizer lettuceClientConfigurationBuilderCustomizer() {
+        return builder -> builder
+                .clientOptions(
+                        builder
+                                .build()
+                                .getClientOptions()
+                                .orElseGet(ClientOptions::create)
+                                .mutate()
+                                .publishOnScheduler(true)
+                                .build()
+                );
+    }
+
+
+    @Bean
     @Primary
     public ReactiveRedisTemplate<Object, Object> reactiveRedisTemplate(ReactiveRedisConnectionFactory reactiveRedisConnectionFactory) {
         ObjectRedisSerializer serializer = new ObjectRedisSerializer();
@@ -42,7 +59,7 @@ public class RedisSerializationConfiguration {
             .hashValue(serializer)
             .build();
 
-        return new ReactiveRedisTemplate<>(reactiveRedisConnectionFactory, serializationContext);
+        return new PublishOnReactiveRedisTemplate<>(reactiveRedisConnectionFactory, serializationContext);
     }
 
 }

@@ -190,9 +190,9 @@ public class DeviceGatewayController implements ReactiveServiceCrudController<De
     @QueryAction
     public Flux<FunctionMetadata> getEntityCommands(@PathVariable String gatewayId) {
         return this.gatewayManager
-            .getGateway(gatewayId)
-            .filter(gateway -> gateway.isWrapperFor(CommandSupport.class))
-            .flatMapMany(gateway -> gateway.unwrap(CommandSupport.class).getCommandMetadata());
+                .getGateway(gatewayId)
+                .filter(gateway -> gateway.isWrapperFor(CommandSupport.class))
+                .flatMapMany(gateway -> gateway.unwrap(CommandSupport.class).getCommandMetadata());
     }
 
     @PostMapping(value = "/{gatewayId}/command/QueryDevicePage")
@@ -202,8 +202,8 @@ public class DeviceGatewayController implements ReactiveServiceCrudController<De
     public Mono<PagerResult<Object>> queryInGatewayDevice(@PathVariable String gatewayId,
                                                           @RequestBody Mono<Map<String, Object>> body) {
         return this
-            .gatewayManager
-            .executeCommand(gatewayId, "QueryDevicePage", body);
+                .gatewayManager
+                .executeCommand(gatewayId, "QueryDevicePage", body);
     }
 
     @PostMapping(value = "/{gatewayId}/command/{commandId}")

@@ -48,68 +48,68 @@ public class DefaultPluginDataIdMapper implements PluginDataIdMapper {
     @EventListener
     public void handleEvent(EntityCreatedEvent<PluginDataIdMappingEntity> event) {
         event.async(
-            saveMapping(Flux.fromIterable(event.getEntity()))
+                saveMapping(Flux.fromIterable(event.getEntity()))
         );
     }
 
     @EventListener
     public void handleEvent(EntityModifyEvent<PluginDataIdMappingEntity> event) {
         event.async(
-            saveMapping(Flux.fromIterable(event.getAfter()))
+                saveMapping(Flux.fromIterable(event.getAfter()))
         );
     }
 
     @EventListener
     public void handleEvent(EntitySavedEvent<PluginDataIdMappingEntity> event) {
         event.async(
-            saveMapping(Flux.fromIterable(event.getEntity()))
+                saveMapping(Flux.fromIterable(event.getEntity()))
         );
     }
 
     @EventListener
     public void handleEvent(EntityDeletedEvent<PluginDataIdMappingEntity> event) {
         event.async(
-            removeMapping(Flux.fromIterable(event.getEntity()))
+                removeMapping(Flux.fromIterable(event.getEntity()))
         );
     }
 
     protected <T> Mono<T> doWithStore(Function<ConfigStorage, Mono<T>> mapper) {
         return storageManager
-            .getStorage("plugin-id-mapping")
-            .flatMap(mapper);
+                .getStorage("plugin-id-mapping")
+                .flatMap(mapper);
     }
 
     private Mono<Void> saveMapping(Flux<PluginDataIdMappingEntity> entityFlux) {
         return this
-            .doWithStore(store -> entityFlux
-                .flatMap(e -> Flux.just(
-                    Tuples.of(
-                        createMappingKey(e.getType(), e.getPluginId(), e.getInternalId()),
-                        e.getExternalId()
-                    ),
-                    Tuples.of(
-                        createMappingKey(e.getType(), e.getPluginId(), e.getExternalId()),
-                        e.getInternalId()
-                    )
-                ))
-                .reduce(new HashMap<String, Object>(), (map, tp2) -> {
-                    map.put(tp2.getT1(), tp2.getT2());
-                    return map;
-                })
-                .flatMap(store::setConfigs))
-            .then();
+                .doWithStore(store -> entityFlux
+                        .flatMap(e -> Flux.just(
+                                Tuples.of(
+                                        createMappingKey(e.getType(), e.getPluginId(), e.getInternalId()),
+                                        e.getExternalId()
+                                ),
+                                Tuples.of(
+                                        createMappingKey(e.getType(), e.getPluginId(), e.getExternalId()),
+                                        e.getInternalId()
+                                )
+                        ))
+                        .reduce(new HashMap<String, Object>(), (map, tp2) -> {
+                            map.put(tp2.getT1(), tp2.getT2());
+                            return map;
+                        })
+                        .flatMap(store::setConfigs))
+                .then();
     }
 
     public Mono<Void> removeMapping(Flux<PluginDataIdMappingEntity> entityFlux) {
         return this
-            .doWithStore(store -> entityFlux
-                .flatMap(e -> Flux.just(
-                    createMappingKey(e.getType(), e.getPluginId(), e.getInternalId()),
-                    createMappingKey(e.getType(), e.getPluginId(), e.getExternalId())
-                ))
-                .buffer(200)
-                .flatMap(store::remove)
-                .then());
+                .doWithStore(store -> entityFlux
+                        .flatMap(e -> Flux.just(
+                                createMappingKey(e.getType(), e.getPluginId(), e.getInternalId()),
+                                createMappingKey(e.getType(), e.getPluginId(), e.getExternalId())
+                        ))
+                        .buffer(200)
+                        .flatMap(store::remove)
+                        .then());
     }
 
     private String createMappingKey(String type, String pluginId, String id) {
@@ -122,16 +122,16 @@ public class DefaultPluginDataIdMapper implements PluginDataIdMapper {
                                       String externalId) {
         Assert.notNull(externalId, "externalId must not be null");
         return doWithStore(store -> store
-            .getConfig(createMappingKey(type, pluginId, externalId),
-                       Mono.defer(() -> repository
-                           .createQuery()
-                           .where(PluginDataIdMappingEntity::getType, type)
-                           .and(PluginDataIdMappingEntity::getPluginId, pluginId)
-                           .and(PluginDataIdMappingEntity::getExternalId, externalId)
-                           .fetchOne()
-                           .map(PluginDataIdMappingEntity::getInternalId)))
-            .map(Value::asString))
-            .defaultIfEmpty(externalId);
+                .getConfig(createMappingKey(type, pluginId, externalId),
+                        Mono.defer(() -> repository
+                                .createQuery()
+                                .where(PluginDataIdMappingEntity::getType, type)
+                                .and(PluginDataIdMappingEntity::getPluginId, pluginId)
+                                .and(PluginDataIdMappingEntity::getExternalId, externalId)
+                                .fetchOne()
+                                .map(PluginDataIdMappingEntity::getInternalId)))
+                .map(Value::asString))
+                .defaultIfEmpty(externalId);
     }
 
     @Override
@@ -140,25 +140,25 @@ public class DefaultPluginDataIdMapper implements PluginDataIdMapper {
                                       String internalId) {
         Assert.notNull(internalId, "internalId must not be null");
         return doWithStore(store -> store
-            .getConfig(createMappingKey(type, pluginId, internalId),
-                       Mono.defer(() -> repository
-                           .createQuery()
-                           .where(PluginDataIdMappingEntity::getType, type)
-                           .and(PluginDataIdMappingEntity::getPluginId, pluginId)
-                           .and(PluginDataIdMappingEntity::getInternalId, internalId)
-                           .fetchOne()
-                           .map(PluginDataIdMappingEntity::getExternalId)))
-            .map(Value::asString))
-            .defaultIfEmpty(internalId);
+                .getConfig(createMappingKey(type, pluginId, internalId),
+                        Mono.defer(() -> repository
+                                .createQuery()
+                                .where(PluginDataIdMappingEntity::getType, type)
+                                .and(PluginDataIdMappingEntity::getPluginId, pluginId)
+                                .and(PluginDataIdMappingEntity::getInternalId, internalId)
+                                .fetchOne()
+                                .map(PluginDataIdMappingEntity::getExternalId)))
+                .map(Value::asString))
+                .defaultIfEmpty(internalId);
     }
 
     @Override
     public Flux<PluginDataMapping> getMappings(String type, String pluginId) {
         return repository
-            .createQuery()
-            .where(PluginDataIdMappingEntity::getType, type)
-            .and(PluginDataIdMappingEntity::getPluginId, pluginId)
-            .fetch()
-            .map(entity -> new PluginDataMapping(entity.getExternalId(), entity.getInternalId()));
+                .createQuery()
+                .where(PluginDataIdMappingEntity::getType, type)
+                .and(PluginDataIdMappingEntity::getPluginId, pluginId)
+                .fetch()
+                .map(entity -> new PluginDataMapping(entity.getExternalId(), entity.getInternalId()));
     }
 }

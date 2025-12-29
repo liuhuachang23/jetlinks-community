@@ -29,7 +29,7 @@
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>easyexcel</artifactId>
-            <version>3.1.1</version>
+            <version>3.3.2</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.poi</groupId>

@@ -34,6 +34,15 @@ import org.hswebframework.web.exception.NotFoundException;
 import org.hswebframework.web.exception.TraceSourceException;
 import org.hswebframework.web.i18n.LocaleUtils;
 import org.hswebframework.web.id.IDGenerator;
+import org.jetlinks.community.device.entity.*;
+import org.jetlinks.community.device.enums.DeviceState;
+import org.jetlinks.community.device.events.DeviceDeployedEvent;
+import org.jetlinks.community.device.events.DeviceUnregisterEvent;
+import org.jetlinks.community.device.web.response.DeviceDeployResult;
+import org.jetlinks.community.plugin.impl.id.PluginDataIdMappingEntity;
+import org.jetlinks.community.relation.RelationObjectProvider;
+import org.jetlinks.community.relation.service.RelationService;
+import org.jetlinks.community.relation.service.response.RelatedInfo;
 import org.jetlinks.core.ProtocolSupport;
 import org.jetlinks.core.Values;
 import org.jetlinks.core.device.DeviceConfigKey;
@@ -55,15 +64,6 @@ import org.jetlinks.core.trace.FluxTracer;
 import org.jetlinks.core.trace.MonoTracer;
 import org.jetlinks.core.utils.CompositeMap;
 import org.jetlinks.core.utils.CyclicDependencyChecker;
-import org.jetlinks.community.device.entity.*;
-import org.jetlinks.community.device.enums.DeviceState;
-import org.jetlinks.community.device.events.DeviceDeployedEvent;
-import org.jetlinks.community.device.events.DeviceUnregisterEvent;
-import org.jetlinks.community.device.web.response.DeviceDeployResult;
-import org.jetlinks.community.relation.RelationObjectProvider;
-import org.jetlinks.community.relation.service.RelationService;
-import org.jetlinks.community.relation.service.response.RelatedInfo;
-import org.jetlinks.community.utils.ErrorUtils;
 import org.jetlinks.reactor.ql.utils.CastUtils;
 import org.jetlinks.supports.official.JetLinksDeviceMetadataCodec;
 import org.reactivestreams.Publisher;
@@ -100,6 +100,8 @@ public class LocalDeviceInstanceService extends GenericReactiveCrudService<Devic
 
     private final ReactiveRepository<DeviceTagEntity, String> tagRepository;
 
+    private final ReactiveRepository<PluginDataIdMappingEntity, String> pluginMappingRepository;
+
     private final ApplicationEventPublisher eventPublisher;
 
     private final DeviceConfigMetadataManager metadataManager;
@@ -112,12 +114,15 @@ public class LocalDeviceInstanceService extends GenericReactiveCrudService<Devic
                                       LocalDeviceProductService deviceProductService,
                                       @SuppressWarnings("all")
                                       ReactiveRepository<DeviceTagEntity, String> tagRepository,
+                                      @SuppressWarnings("all")
+                                      ReactiveRepository<PluginDataIdMappingEntity, String> pluginMappingRepository,
                                       ApplicationEventPublisher eventPublisher,
                                       DeviceConfigMetadataManager metadataManager,
                                       RelationService relationService,
                                       TransactionalOperator transactionalOperator) {
         this.registry = registry;
         this.deviceProductService = deviceProductService;
+        this.pluginMappingRepository = pluginMappingRepository;
         this.tagRepository = tagRepository;
         this.eventPublisher = eventPublisher;
         this.metadataManager = metadataManager;
@@ -218,6 +223,19 @@ public class LocalDeviceInstanceService extends GenericReactiveCrudService<Devic
         return this
             .deploy(flux, this::retryDeploy);
 //            .contextWrite(TraceSourceException.deepTraceContext());
+    }
+
+    public Mono<Void> deleteCore(String id) {
+        return deleteById(Mono.just(id))
+            .then(
+                pluginMappingRepository
+                    .createDelete()
+                    .where(PluginDataIdMappingEntity::getInternalId, id)
+                    .and(PluginDataIdMappingEntity::getType, "device")
+                    .execute()
+                    .onErrorResume(err -> Mono.just(0))
+            )
+            .then();
     }
 
     /**
@@ -638,6 +656,32 @@ public class LocalDeviceInstanceService extends GenericReactiveCrudService<Devic
                 log.warn("get device detail error:{}", err.getLocalizedMessage(), err);
                 return Mono.just(detail);
             });
+    }
+
+    public Flux<String> getIdByProductId(String productId) {
+        return createQuery()
+                .where(DeviceInstanceEntity::getProductId, productId)
+                .select(DeviceInstanceEntity::getId)
+                .fetch()
+                .map(DeviceInstanceEntity::getId);
+    }
+
+
+
+    public Mono<String> getIdByDevEUI(String devEUI) {
+        return createQuery()
+                .where(DeviceInstanceEntity::getDevEui, devEUI)
+                .select(DeviceInstanceEntity::getId)
+                .fetchOne()
+                .map(DeviceInstanceEntity::getId);
+    }
+
+    public Mono<String> getDevEUIById(String id) {
+        return createQuery()
+                .where(DeviceInstanceEntity::getId, id)
+                .select(DeviceInstanceEntity::getDevEui)
+                .fetchOne()
+                .map(DeviceInstanceEntity::getDevEui);
     }
 
     public Mono<DeviceDetail> getDeviceDetail(String deviceId) {

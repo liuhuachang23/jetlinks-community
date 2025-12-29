@@ -62,6 +62,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
 
 public class DefaultRDBDataSource extends AbstractDataSource<RDBDataSourceProperties> implements RDBDataSource {
 
@@ -85,68 +86,68 @@ public class DefaultRDBDataSource extends AbstractDataSource<RDBDataSourceProper
 
         //刷新RDB数据源命令：Refresh
         registerHandler(
-            Refresh.class,
-            CommandHandler.of(
-                Refresh.metadata(),
-                (cmd, ignore) -> cmd.execute(operator),
-                Refresh::new
-            )
+                Refresh.class,
+                CommandHandler.of(
+                        Refresh.metadata(),
+                        (cmd, ignore) -> cmd.execute(operator),
+                        Refresh::new
+                )
         );
 
         //执行SQL命令：ExecuteSql
         registerHandler(
-            ExecuteSql.class,
-            CommandHandler.of(
-                ExecuteSql.metadata(),
-                (cmd, ignore) -> loading
-                    .asMono()
-                    .thenMany(cmd.execute(operator)),
-                ExecuteSql::new
-            )
+                ExecuteSql.class,
+                CommandHandler.of(
+                        ExecuteSql.metadata(),
+                        (cmd, ignore) -> loading
+                                .asMono()
+                                .thenMany(cmd.execute(operator)),
+                        ExecuteSql::new
+                )
         );
 
         //执行列表查询命令：QueryList
         registerHandler(
-            QueryList.class,
-            CommandHandler.of(
-                QueryList.metadata(),
-                (cmd, ignore) -> loading
-                    .asMono()
-                    .thenMany(cmd.execute(operator)),
-                QueryList::new
-            )
+                QueryList.class,
+                CommandHandler.of(
+                        QueryList.metadata(),
+                        (cmd, ignore) -> loading
+                                .asMono()
+                                .thenMany(cmd.execute(operator)),
+                        QueryList::new
+                )
         );
 
         //执行分页查询命令：QueryPager
         registerHandler(
-            QueryPager.class,
-            CommandHandler.of(
-                QueryPager.metadata(),
-                (cmd, ignore) -> loading
-                    .asMono()
-                    .then(cmd.execute(operator)),
-                QueryPager::new
-            )
+                QueryPager.class,
+                CommandHandler.of(
+                        QueryPager.metadata(),
+                        (cmd, ignore) -> loading
+                                .asMono()
+                                .then(cmd.execute(operator)),
+                        QueryPager::new
+                )
         );
 
         //执行统计数量命令：Count
         registerHandler(
-            Count.class,
-            CommandHandler.of(
-                Count.metadata(),
-                (cmd, ignore) -> loading
-                    .asMono()
-                    .then(cmd.execute(operator)),
-                Count::new
-            )
+                Count.class,
+                CommandHandler.of(
+                        Count.metadata(),
+                        (cmd, ignore) -> loading
+                                .asMono()
+                                .then(cmd.execute(operator)),
+                        Count::new
+                )
         );
 
     }
 
     private void loadTables() {
         new Refresh().execute(operator)
-                     .doOnTerminate(loading::tryEmitEmpty)
-                     .subscribe();
+                .doOnTerminate(loading::tryEmitEmpty)
+                .subscribe();
     }
 
     @Override
@@ -186,7 +187,7 @@ public class DefaultRDBDataSource extends AbstractDataSource<RDBDataSourceProper
         if (MapUtils.isNotEmpty(getConfig().getOthers())) {
             //使用jsonCopy,FastBeanCopier不支持final字段copy.
             properties = ObjectMappers
-                .parseJson(ObjectMappers.toJsonBytes(getConfig().getOthers()), R2dbcProperties.class);
+                    .parseJson(ObjectMappers.toJsonBytes(getConfig().getOthers()), R2dbcProperties.class);
         } else {
             properties = new R2dbcProperties();
         }
@@ -229,24 +230,25 @@ public class DefaultRDBDataSource extends AbstractDataSource<RDBDataSourceProper
             @Override
             public Mono<Void> execute(Publisher<SqlRequest> request) {
                 return super
-                    .execute(request)
-                    .as(transactionalOperator::transactional);
+                        .execute(request)
+                        .as(transactionalOperator::transactional);
             }
 
             @Override
             public Mono<Integer> update(Publisher<SqlRequest> request) {
                 return super
-                    .update(request)
-                    .as(transactionalOperator::transactional);
+                        .update(request)
+                        .as(transactionalOperator::transactional);
             }
 
             @Override
             public <E> Flux<E> select(Publisher<SqlRequest> request, ResultWrapper<E, ?> wrapper) {
                 return super
-                    .select(request, wrapper)
-                    .as(transactionalOperator::transactional);
+                        .select(request, wrapper)
+                        .as(transactionalOperator::transactional);
             }
         };
+        executor.setDefaultFactory(connectionPool);
         executor.setBindSymbol(dialect.getBindSymbol());
         executor.setBindCustomSymbol(!executor.getBindSymbol().equals("?"));
         RDBDatabaseMetadata database = new RDBDatabaseMetadata(dialect.getDialect());
@@ -308,12 +310,12 @@ public class DefaultRDBDataSource extends AbstractDataSource<RDBDataSourceProper
     @Override
     protected Mono<DataSourceState> checkState() {
         return operator
-            .sql()
-            .reactive()
-            .select(validateSql)
-            .map(i -> DataSourceState.ok)
-            .onErrorResume(err -> Mono.just(DataSourceState.error(translateException(err))))
-            .last();
+                .sql()
+                .reactive()
+                .select(validateSql)
+                .map(i -> DataSourceState.ok)
+                .onErrorResume(err -> Mono.just(DataSourceState.error(translateException(err))))
+                .last();
     }
 
     @Override

@@ -138,18 +138,18 @@ public class PluginDeviceSession implements PersistentSession {
         PluginDataIdMapper idMapper = this.idMapper;
         if (plugin == null || idMapper == null) {
             return Mono.error(
-                new DeviceOperationException
-                    .NoStackTrace(ErrorCode.SERVER_NOT_AVAILABLE, "error.plugin_not_found")
+                    new DeviceOperationException
+                            .NoStackTrace(ErrorCode.SERVER_NOT_AVAILABLE, "error.plugin_not_found")
             );
         }
         return context
-            .reply(
-                PluginUtils
-                    .transformToExternalMessage(idMapper, plugin, ((DeviceMessage) context.getMessage()).copy())
-                    .flatMapMany(plugin::execute)
-                    .flatMap(reply -> PluginUtils.transformToInternalMessage(idMapper, plugin, reply.copy()))
-            )
-            .then(Reactors.ALWAYS_TRUE);
+                .reply(
+                        PluginUtils
+                                .transformToExternalMessage(idMapper, plugin, ((DeviceMessage) context.getMessage()).copy())
+                                .flatMapMany(plugin::execute)
+                                .flatMap(reply -> PluginUtils.transformToInternalMessage(idMapper, plugin, reply.copy()))
+                )
+                .then(Reactors.ALWAYS_TRUE);
     }
 
     @Override
@@ -180,17 +180,17 @@ public class PluginDeviceSession implements PersistentSession {
         String pluginId = SerializeUtils.readNullableUTF(input);
 
         return registry
-            .getDevice(deviceId)
-            .map(device -> {
-                PluginDeviceSession session = new PluginDeviceSession(device);
-                session.connectTime = connectTime;
-                session.pingTime = pingTime;
-                session.idMapper = idMapper;
-                session.timeout = timeout;
-                if (pluginId != null) {
-                    session.plugin = pluginLoader.apply(pluginId);
-                }
-                return session;
-            });
+                .getDevice(deviceId)
+                .map(device -> {
+                    PluginDeviceSession session = new PluginDeviceSession(device);
+                    session.connectTime = connectTime;
+                    session.pingTime = pingTime;
+                    session.idMapper = idMapper;
+                    session.timeout = timeout;
+                    if (pluginId != null) {
+                        session.plugin = pluginLoader.apply(pluginId);
+                    }
+                    return session;
+                });
     }
 }

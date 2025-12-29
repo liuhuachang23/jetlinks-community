@@ -57,6 +57,16 @@
     <profiles>
 
         <profile>
+            <id>oracle</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.oracle.database.r2dbc</groupId>
+                    <artifactId>oracle-r2dbc</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <profile>
             <id>osx-x86_64</id>
             <activation>
                 <os>
@@ -105,7 +115,7 @@
         <profile>
             <id>es7x</id>
             <properties>
-                <elasticsearch.version>7.17.26</elasticsearch.version>
+                <elasticsearch.version>7.17.23</elasticsearch.version>
             </properties>
             <dependencies>
 
@@ -197,16 +207,29 @@
     </profiles>
 
     <dependencies>
+
+        <dependency>
+            <groupId>org.jetlinks.community</groupId>
+            <artifactId>kafka-component</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jetlinks.community</groupId>
+            <artifactId>rabbitmq-component</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>org.jetlinks.community</groupId>
             <artifactId>common-component</artifactId>
         </dependency>
 
-<!--        <dependency>-->
-<!--            <groupId>javax.validation</groupId>-->
-<!--            <artifactId>validation-api</artifactId>-->
-<!--            <version>2.0.1.Final</version>-->
-<!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>javax.validation</groupId>-->
+        <!--            <artifactId>validation-api</artifactId>-->
+        <!--            <version>2.0.1.Final</version>-->
+        <!--        </dependency>-->
 
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -267,6 +290,12 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>network-manager</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>jetlinks-openapi-manager</artifactId>
             <version>${project.version}</version>
         </dependency>
 

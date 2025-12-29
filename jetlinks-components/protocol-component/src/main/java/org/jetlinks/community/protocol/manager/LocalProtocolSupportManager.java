@@ -21,10 +21,10 @@ import org.hswebframework.ezorm.rdb.mapping.ReactiveRepository;
 import org.hswebframework.web.crud.events.*;
 import org.hswebframework.web.exception.BusinessException;
 import org.hswebframework.web.i18n.LocaleUtils;
-import org.jetlinks.core.ProtocolSupport;
-import org.jetlinks.core.trace.MonoTracer;
 import org.jetlinks.community.protocol.ProtocolSupportEntity;
 import org.jetlinks.community.reference.DataReferenceManager;
+import org.jetlinks.core.ProtocolSupport;
+import org.jetlinks.core.trace.MonoTracer;
 import org.jetlinks.supports.protocol.StaticProtocolSupports;
 import org.jetlinks.supports.protocol.management.ProtocolSupportDefinition;
 import org.jetlinks.supports.protocol.management.ProtocolSupportLoader;
@@ -96,8 +96,8 @@ public class LocalProtocolSupportManager
     @EventListener
     public void checkProtocol(EntityBeforeModifyEvent<ProtocolSupportEntity> event) {
         event.async(
-            Flux.fromIterable(event.getAfter())
-                .flatMap(entity -> checkProtocol(entity.toDefinition()))
+                Flux.fromIterable(event.getAfter())
+                        .flatMap(entity -> checkProtocol(entity.toDefinition()))
         );
     }
 
@@ -105,8 +105,8 @@ public class LocalProtocolSupportManager
     @EventListener
     public void handleProtocolDelete(EntityDeletedEvent<ProtocolSupportEntity> event) {
         event.async(
-            Flux.fromIterable(event.getEntity())
-                .doOnNext(entity -> remove(entity.toDefinition()))
+                Flux.fromIterable(event.getEntity())
+                        .doOnNext(entity -> remove(entity.toDefinition()))
         );
     }
 
@@ -114,8 +114,8 @@ public class LocalProtocolSupportManager
     @EventListener
     public void checkProtocol(EntitySavedEvent<ProtocolSupportEntity> event) {
         event.async(
-            Flux.fromIterable(event.getEntity())
-                .flatMap(entity -> init(entity.toDefinition()))
+                Flux.fromIterable(event.getEntity())
+                        .flatMap(entity -> init(entity.toDefinition()))
         );
     }
 
@@ -123,8 +123,8 @@ public class LocalProtocolSupportManager
     @EventListener
     public void checkProtocol(EntityCreatedEvent<ProtocolSupportEntity> event) {
         event.async(
-            Flux.fromIterable(event.getEntity())
-                .flatMap(entity -> init(entity.toDefinition()))
+                Flux.fromIterable(event.getEntity())
+                        .flatMap(entity -> init(entity.toDefinition()))
         );
     }
 

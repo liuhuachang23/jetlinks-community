@@ -21,6 +21,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.NestedQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.msearch.MultisearchBody;
+import co.elastic.clients.util.ObjectBuilder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +46,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * @author zhouhao
@@ -97,10 +99,13 @@ public class QueryParamTranslator {
         Consumer<Term> fParamConverter = paramConverter;
         BiFunction<Term, NestedQuery.Builder, NestedQuery.Builder> fNestedConverter = nestedConverter;
 
-        queryBuilder.bool(bool -> process(
-            terms,
-            fParamConverter,
-            fNestedConverter, bool));
+        queryBuilder.bool(bool -> {
+            if (CollectionUtils.isEmpty(terms)) {
+                return bool;
+            }
+            TermGroup group = groupTerms(terms);
+            return group.build(group.getType(), fParamConverter, fNestedConverter, bool);
+        });
 
         return queryBuilder;
     }
@@ -173,120 +178,55 @@ public class QueryParamTranslator {
         return builder;
     }
 
-
-    public static BoolQuery.Builder process(List<Term> terms,
-                                            Consumer<Term> consumer,
-                                            BiFunction<Term, NestedQuery.Builder, NestedQuery.Builder> nestedConverter,
-                                            BoolQuery.Builder queryBuilders) {
-
-        if (CollectionUtils.isEmpty(terms)) {
-            return queryBuilders;
-        }
-
-        for (TermGroup group : groupTerms(terms)) {
-            if (group.type == Term.Type.or) {
-                for (Term groupTerm : group.getTerms()) {
-                    handleOr(queryBuilders, groupTerm, nestedConverter, consumer);
-                }
-            } else {
-                queryBuilders
-                    .should(must ->
-                                must.bool(bool -> {
-                                    for (Term groupTerm : group.getTerms()) {
-                                        handleAnd(bool, groupTerm, nestedConverter, consumer);
-                                    }
-                                    return bool;
-                                }));
-            }
-
-        }
-        return queryBuilders;
-    }
-
-    private static void handleOr(BoolQuery.Builder queryBuilders,
-                                 Term term,
-                                 BiFunction<Term, NestedQuery.Builder, NestedQuery.Builder> nestedConverter,
-                                 Consumer<Term> consumer) {
-        consumer.accept(term);
-        if (term.getTerms().isEmpty() && term.getValue() != null) {
-
-            queryBuilders
-                .should(should -> applyTerm(term, should, nestedConverter));
-
-        } else if (!term.getTerms().isEmpty()) {
-
-            queryBuilders
-                .should(should -> should
-                    .bool(bool -> process(term.getTerms(), consumer, nestedConverter, bool)));
-        }
-    }
-
-    private static Query.Builder applyTerm(Term term, Query.Builder builder, BiFunction<Term, NestedQuery.Builder,
-        NestedQuery.Builder> converter) {
+    private static Query.Builder applyTerm(Term term, Query.Builder builder, BiFunction<Term, NestedQuery.Builder, NestedQuery.Builder> converter) {
 
         if (term.getColumn().contains(".")) {
             String path = term.getColumn().split("[.]")[0];
 
-            builder.nested(n -> converter
-                .apply(term, n
-                    .path(path)
-                    .boost(1F)
-                    .ignoreUnmapped(false)
-                    .query(query -> ElasticSearchTermTypes
-                        .lookup(term)
-                        .map(type -> type.process(term, query))
-                        .orElse(query)))
-            );
+            builder.nested(n -> converter.apply(term, n
+                .path(path)
+                .boost(1F)
+                .ignoreUnmapped(false)
+                .query(query -> ElasticSearchTermTypes
+                    .lookup(term)
+                    .map(type -> type.process(term, query))
+                    .orElse(query))));
 
             return builder;
         }
-        return ElasticSearchTermTypes
-            .lookup(term)
-            .map(type -> type.process(term, builder))
-            .orElse(builder);
+        return ElasticSearchTermTypes.lookup(term).map(type -> type.process(term, builder)).orElse(builder);
     }
 
-    private static void handleAnd(BoolQuery.Builder queryBuilders,
-                                  Term term,
-                                  BiFunction<Term, NestedQuery.Builder, NestedQuery.Builder> nestedConverter,
-                                  Consumer<Term> consumer) {
-        consumer.accept(term);
-        if (term.getTerms().isEmpty() && term.getValue() != null) {
-
-            queryBuilders.must(must -> applyTerm(term, must, nestedConverter));
-
-        } else if (!term.getTerms().isEmpty()) {
-
-            queryBuilders.must(must -> must.bool(bool -> process(term.getTerms(), consumer, nestedConverter, bool)));
-        }
+    public static TermGroup groupTerms(List<Term> terms) {
+        return groupTerms(terms.get(0), terms.subList(1, terms.size()), new TermGroup(Term.Type.and));
     }
 
-
-    public static Set<TermGroup> groupTerms(List<Term> terms) {
-        Set<TermGroup> groups = new HashSet<>();
-        TermGroup currentGroup = null;
-
-        for (int i = 0; i < terms.size(); i++) {
-            Term currentTerm = terms.get(i);
-            Term nextTerm = (i + 1 < terms.size()) ? terms.get(i + 1) : null;
-
-            if (currentTerm.getType() == Term.Type.or) {
-                if (currentGroup == null || currentGroup.type == Term.Type.and) {
-                    currentGroup = new TermGroup(Term.Type.or);
-                }
-                // 如果下一个Term为"AND"，创建一个新分组
-                if (nextTerm != null && nextTerm.getType() == Term.Type.and) {
-                    currentGroup = new TermGroup(Term.Type.and);
-                }
-            } else {
-                if (currentGroup == null) {
-                    currentGroup = new TermGroup(Term.Type.and);
-                }
-            }
-            currentGroup.addTerm(currentTerm);
-            groups.add(currentGroup);
+    private static TermGroup groupTerms(Term first, List<Term> others, TermGroup currentGroup) {
+        if (first.getValue() != null) {
+            currentGroup.addTerm(first);
         }
-        return groups;
+        if (!first.getTerms().isEmpty()) {
+            currentGroup.addGroup(groupTerms(first.getTerms()));
+        }
+
+        if (CollectionUtils.isEmpty(others)) {
+            return currentGroup;
+        }
+
+        Term current = others.get(0);
+        //接下来为or,则新建or分组
+        if (current.getType() == Term.Type.or) {
+            TermGroup oldGroup = currentGroup;
+            currentGroup = new TermGroup(Term.Type.or);
+            //添加之前的分组
+            currentGroup.addGroup(oldGroup);
+            //添加后续条件
+            currentGroup.addGroup(groupTerms(others));
+            return currentGroup;
+        } else {
+            //在当前分组继续添加后续条件
+            return groupTerms(current, others.subList(1, others.size()), currentGroup);
+        }
     }
 
     @Getter
@@ -295,16 +235,66 @@ public class QueryParamTranslator {
         public TermGroup(Term.Type type) {
             this.type = type;
             this.terms = new ArrayList<>();
+            this.groups = new ArrayList<>();
         }
 
+        //只需处理第一层value,下级Term已拆分为group
         List<Term> terms;
 
         Term.Type type;
 
+        List<TermGroup> groups;
+
         public void addTerm(Term term) {
             terms.add(term);
         }
+
+        public void addGroup(TermGroup group) {
+            if (group.getType() == type) {
+                //同类型平铺
+                for (Term term : group.getTerms()) {
+                    addTerm(term);
+                }
+                groups.addAll(group.getGroups());
+            } else if (group.getTerms().size() == 1 && group.getGroups().isEmpty()) {
+                //不同类型但只有一个条件，直接添加
+                addTerm(group.getTerms().get(0));
+            } else {
+                groups.add(group);
+            }
+        }
+
+        public BoolQuery.Builder buildByType(Term.Type type, BoolQuery.Builder queryBuilders, Function<Query.Builder, ObjectBuilder<Query>> fn) {
+            if (type == Term.Type.and) {
+                return queryBuilders.must(fn);
+            } else {
+                return queryBuilders.should(fn);
+            }
+        }
+
+        public BoolQuery.Builder build(Term.Type type,
+                                       Consumer<Term> consumer,
+                                       BiFunction<Term, NestedQuery.Builder, NestedQuery.Builder> nestedConverter,
+                                       BoolQuery.Builder queryBuilders) {
+            return buildByType(type, queryBuilders, builder -> builder.bool(_b -> {
+                if (!terms.isEmpty()) {
+                    for (Term term : terms) {
+                        consumer.accept(term);
+                        buildByType(this.getType(), _b, __b -> {
+                            consumer.accept(term);
+                            return applyTerm(term, __b, nestedConverter);
+                        });
+                    }
+
+                }
+                if (!groups.isEmpty()) {
+                    for (TermGroup group : groups) {
+                        group.build(this.getType(), consumer, nestedConverter, _b);
+                    }
+                }
+
+                return _b;
+            }));
+        }
     }
-
-
 }

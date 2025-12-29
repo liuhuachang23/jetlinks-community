@@ -220,36 +220,36 @@ public class ReactiveAggregationService implements AggregationService {
 
 
         return Mono.zip(
-                       Mono.just(index),
-                       indexManager
-                           .getIndexStrategy(index)
-                           .map(s -> s.getIndexForSearch(index)),
-                       indexManager.getIndexMetadata(index))
-                   .flatMapMany(tps -> {
-                       ElasticSearchIndexMetadata metadata = tps.getT3();
-                       return restClient
-                           .execute(client -> client
-                               .search(search -> search
-                                   .index(tps.getT2())
-                                   .query(q -> QueryParamTranslator.applyQueryBuilder(q, param, metadata))
-                                   .ignoreUnavailable(true)
-                                   .allowNoIndices(true)
-                                   .size(0)
-                                   .aggregations(createAggregations(metadata, aggregationQueryParam)), Map.class))
-                           .flatMapMany(resp -> Flux
-                               .fromIterable(resp.aggregations().entrySet())
-                               .concatMap(e -> parseAggregation(e.getKey(), e.getValue(), -1)))
-                           .as(flux -> {
-                               if (!isGroup) {
-                                   return flux
-                                       .map(Map::entrySet)
-                                       .flatMap(Flux::fromIterable)
-                                       .collectMap(Map.Entry::getKey, Map.Entry::getValue)
-                                       .flux();
-                               }
-                               return flux;
-                           });
-                   });
+                        Mono.just(index),
+                        indexManager
+                                .getIndexStrategy(index)
+                                .map(s -> s.getIndexForSearch(index)),
+                        indexManager.getIndexMetadata(index))
+                .flatMapMany(tps -> {
+                    ElasticSearchIndexMetadata metadata = tps.getT3();
+                    return restClient
+                            .execute(client -> client
+                                    .search(search -> search
+                                            .index(tps.getT2())
+                                            .query(q -> QueryParamTranslator.applyQueryBuilder(q, param, metadata))
+                                            .ignoreUnavailable(true)
+                                            .allowNoIndices(true)
+                                            .size(0)
+                                            .aggregations(createAggregations(metadata, aggregationQueryParam)), Map.class))
+                            .flatMapMany(resp -> Flux
+                                    .fromIterable(resp.aggregations().entrySet())
+                                    .concatMap(e -> parseAggregation(e.getKey(), e.getValue(), -1)))
+                            .as(flux -> {
+                                if (!isGroup) {
+                                    return flux
+                                            .map(Map::entrySet)
+                                            .flatMap(Flux::fromIterable)
+                                            .collectMap(Map.Entry::getKey, Map.Entry::getValue)
+                                            .flux();
+                                }
+                                return flux;
+                            });
+                });
     }
 
     @Override
@@ -259,38 +259,38 @@ public class ReactiveAggregationService implements AggregationService {
         }
         boolean isGroup = CollectionUtils.isNotEmpty(aggregationQueryParam.getGroups());
         return Flux.fromArray(index)
-                   .flatMap(idx ->
-                                Mono.zip(Mono.just(idx),
-                                         indexManager
-                                             .getIndexStrategy(idx)
-                                             .map(s -> s.getIndexForSearch(idx)),
-                                         indexManager.getIndexMetadata(idx)))
-                   .collectList()
-                   .flatMapMany(tps -> {
-                       ElasticSearchIndexMetadata metadata = tps.get(0).getT3();
-                       return restClient
-                           .execute(client -> client
-                               .search(search -> search
-                                   .index(Lists.transform(tps, Tuple3::getT2))
-                                   .query(q -> QueryParamTranslator.applyQueryBuilder(q, aggregationQueryParam.getQueryParam(), metadata))
-                                   .size(0)
-                                   .ignoreUnavailable(true)
-                                   .allowNoIndices(true)
-                                   .aggregations(createAggregations(metadata, aggregationQueryParam)), Map.class))
-                           .flatMapMany(resp -> Flux
-                               .fromIterable(resp.aggregations().entrySet())
-                               .concatMap(e -> parseAggregation(e.getKey(), e.getValue(), -1)))
-                           .as(flux -> {
-                               if (!isGroup) {
-                                   return flux
-                                       .map(Map::entrySet)
-                                       .flatMap(Flux::fromIterable)
-                                       .collectMap(Map.Entry::getKey, Map.Entry::getValue)
-                                       .flux();
-                               }
-                               return flux;
-                           });
-                   });
+                .flatMap(idx ->
+                        Mono.zip(Mono.just(idx),
+                                indexManager
+                                        .getIndexStrategy(idx)
+                                        .map(s -> s.getIndexForSearch(idx)),
+                                indexManager.getIndexMetadata(idx)))
+                .collectList()
+                .flatMapMany(tps -> {
+                    ElasticSearchIndexMetadata metadata = tps.get(0).getT3();
+                    return restClient
+                            .execute(client -> client
+                                    .search(search -> search
+                                            .index(Lists.transform(tps, Tuple3::getT2))
+                                            .query(q -> QueryParamTranslator.applyQueryBuilder(q, aggregationQueryParam.getQueryParam(), metadata))
+                                            .size(0)
+                                            .ignoreUnavailable(true)
+                                            .allowNoIndices(true)
+                                            .aggregations(createAggregations(metadata, aggregationQueryParam)), Map.class))
+                            .flatMapMany(resp -> Flux
+                                    .fromIterable(resp.aggregations().entrySet())
+                                    .concatMap(e -> parseAggregation(e.getKey(), e.getValue(), -1)))
+                            .as(flux -> {
+                                if (!isGroup) {
+                                    return flux
+                                            .map(Map::entrySet)
+                                            .flatMap(Flux::fromIterable)
+                                            .collectMap(Map.Entry::getKey, Map.Entry::getValue)
+                                            .flux();
+                                }
+                                return flux;
+                            });
+                });
 
     }
 
@@ -299,23 +299,23 @@ public class ReactiveAggregationService implements AggregationService {
                                                        long docCount) {
         if (aggregate.isSum()) {
             return Flux.just(docCount == 0
-                                 ? Collections.emptyMap()
-                                 : Collections.singletonMap(name, getSafeNumber(aggregate.sum().value())));
+                    ? Collections.emptyMap()
+                    : Collections.singletonMap(name, getSafeNumber(aggregate.sum().value())));
         }
         if (aggregate.isAvg()) {
             return Flux.just(docCount == 0
-                                 ? Collections.emptyMap()
-                                 : Collections.singletonMap(name, getSafeNumber(aggregate.avg().value())));
+                    ? Collections.emptyMap()
+                    : Collections.singletonMap(name, getSafeNumber(aggregate.avg().value())));
         }
         if (aggregate.isMax()) {
             return Flux.just(docCount == 0
-                                 ? Collections.emptyMap()
-                                 : Collections.singletonMap(name, getSafeNumber(aggregate.max().value())));
+                    ? Collections.emptyMap()
+                    : Collections.singletonMap(name, getSafeNumber(aggregate.max().value())));
         }
         if (aggregate.isMin()) {
             return Flux.just(docCount == 0
-                                 ? Collections.emptyMap()
-                                 : Collections.singletonMap(name, getSafeNumber(aggregate.min().value())));
+                    ? Collections.emptyMap()
+                    : Collections.singletonMap(name, getSafeNumber(aggregate.min().value())));
         }
         if (aggregate.isCardinality()) {
             return Flux.just(Collections.singletonMap(name, aggregate.cardinality().value()));
@@ -407,8 +407,8 @@ public class ReactiveAggregationService implements AggregationService {
     private Object parseBucket(Object bucket) {
         if (bucket instanceof MultiBucketBase base) {
             return ElasticSearchSupport
-                .current()
-                .getBucketKey(base);
+                    .current()
+                    .getBucketKey(base);
         }
 
         return null;

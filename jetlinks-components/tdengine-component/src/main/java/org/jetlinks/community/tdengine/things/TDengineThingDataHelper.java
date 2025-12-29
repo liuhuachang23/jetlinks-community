@@ -51,7 +51,6 @@ import reactor.function.Predicate3;
 import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
-
 @AllArgsConstructor
 public class TDengineThingDataHelper implements Disposable {
 

@@ -24,9 +24,12 @@ import org.hswebframework.web.api.crud.entity.QueryOperation;
 import org.hswebframework.web.api.crud.entity.QueryParamEntity;
 import org.hswebframework.web.authorization.annotation.QueryAction;
 import org.hswebframework.web.authorization.annotation.Resource;
+import org.jetlinks.community.dashboard.MeasurementParameter;
 import org.jetlinks.community.logging.access.AccessLoggerService;
+import org.jetlinks.community.logging.access.HttpMethodStats;
 import org.jetlinks.community.logging.access.SerializableAccessLog;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -58,5 +61,11 @@ public class AccessLoggerController {
             .flatMap(loggerService::query);
     }
 
+    @PostMapping("/_multi")
+    @QueryAction
+    @Operation(summary = "(POST)查询HTTP方法统计")
+    public Flux<HttpMethodStats> getStatsByDate(@RequestBody MeasurementParameter parameter) {
+        return loggerService.statsByInterval(parameter);
+    }
 
 }

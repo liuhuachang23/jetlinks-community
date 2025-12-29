@@ -76,9 +76,33 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
+            <artifactId>simulator-component</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+<!--        <dependency>-->
+<!--            <groupId>${project.groupId}</groupId>-->
+<!--            <artifactId>coap-component</artifactId>-->
+<!--            <version>${project.version}</version>-->
+<!--        </dependency>-->
+
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>http-component</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.jetlinks.community</groupId>
+            <artifactId>udp-component</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.jetlinks.community</groupId>-->
+<!--            <artifactId>websocket-component</artifactId>-->
+<!--            <version>${project.version}</version>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>org.jetlinks.community</groupId>
             <artifactId>protocol-component</artifactId>

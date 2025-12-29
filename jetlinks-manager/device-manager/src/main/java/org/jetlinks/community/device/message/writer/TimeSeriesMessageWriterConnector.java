@@ -46,23 +46,23 @@ public class TimeSeriesMessageWriterConnector {
     @Generated
     public Mono<Void> writeDeviceMessageToTs(DeviceMessage message) {
         return dataService
-            .saveDeviceMessage(message)
-            .then(writeToThingsDataWriter(message))
-            .onErrorResume(err -> {
-                log.warn("write device message error {}", message, err);
-                return Mono.empty();
-            });
+                .saveDeviceMessage(message)
+                .then(writeToThingsDataWriter(message))
+                .onErrorResume(err -> {
+                    log.warn("write device message error {}", message, err);
+                    return Mono.empty();
+                });
     }
 
     private Mono<Void> writeToThingsDataWriter(DeviceMessage message) {
         if (message instanceof PropertyMessage) {
             return Flux
-                .fromIterable(((PropertyMessage) message).getCompleteProperties())
-                .concatMap(prop -> thingsDataWriter
-                    .updateProperty(message.getThingType(),
+                    .fromIterable(((PropertyMessage) message).getCompleteProperties())
+                    .concatMap(prop -> thingsDataWriter
+                            .updateProperty(message.getThingType(),
                                     message.getThingId(),
                                     prop))
-                .then();
+                    .then();
         }
         return Mono.empty();
     }

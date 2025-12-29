@@ -155,13 +155,18 @@ public class DeviceSessionMeasurementProvider extends StaticMeasurementProvider 
                          parameter.getString("format", "yyyy-MM-dd"))
                 .from(parameter.getDate("from", TimeUtils.parseDate("now-1d")))
                 .to(parameter.getDate("to").orElseGet(Date::new))
-                .filter(q -> q
-                    .is("name", "duration")
-                    //产品ID
-                    .is("productId", parameter.getString("productId", null))
-                    //设备ID
-                    .is("deviceId", parameter.getString("deviceId", null))
-                );
+                .filter(q -> {
+                    // Handle productId as string or array
+                    parameter.get("productId", Object.class).ifPresent(productId -> {
+                        if (productId instanceof Iterable) {
+                            q.in("productId", (Iterable<?>) productId);
+                        } else if (productId instanceof String) {
+                            q.is("productId", productId);
+                        }
+                    });
+                    // Filter by deviceId
+                    q.is("deviceId", parameter.getString("deviceId", null));
+                });
 
         }
 

@@ -80,17 +80,17 @@ public class AlarmRecordTrendMeasurement extends StaticMeasurement {
             return AggregationQueryParam
                     .of()
                     .groupBy(parameter.getInterval("time", null),
-                             parameter.getString("format").orElse("MM月dd日 HH时"))
+                            parameter.getString("format").orElse("MM月dd日 HH时"))
                     .count("targetId", "count")
                     .limit(parameter.getInt("limit").orElse(1))
                     .from(parameter
-                                  .getDate("from")
-                                  .orElseGet(() -> Date
-                                          .from(LocalDateTime
-                                                        .now()
-                                                        .plusDays(-1)
-                                                        .atZone(ZoneId.systemDefault())
-                                                        .toInstant())))
+                            .getDate("from")
+                            .orElseGet(() -> Date
+                                    .from(LocalDateTime
+                                            .now()
+                                            .plusDays(-1)
+                                            .atZone(ZoneId.systemDefault())
+                                            .toInstant())))
                     .to(parameter.getDate("to").orElse(new Date()));
         }
 

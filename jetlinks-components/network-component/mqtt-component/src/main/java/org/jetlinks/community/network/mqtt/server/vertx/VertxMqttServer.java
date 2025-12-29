@@ -43,7 +43,7 @@ public class VertxMqttServer implements MqttServer {
     private final Sinks.Many<MqttConnection> sink = Reactors.createMany(5 * 1024, false);
 
     private final Map<String, List<Sinks.Many<MqttConnection>>> sinks =
-        new NonBlockingHashMap<>();
+            new NonBlockingHashMap<>();
 
     private Collection<io.vertx.mqtt.MqttServer> mqttServer;
 
@@ -67,12 +67,12 @@ public class VertxMqttServer implements MqttServer {
         this.mqttServer = mqttServer;
         for (io.vertx.mqtt.MqttServer server : this.mqttServer) {
             server
-                .exceptionHandler(error -> {
-                    log.error(error.getMessage(), error);
-                })
-                .endpointHandler(endpoint -> {
-                    handleConnection(new VertxMqttConnection(endpoint));
-                });
+                    .exceptionHandler(error -> {
+                        log.error(error.getMessage(), error);
+                    })
+                    .endpointHandler(endpoint -> {
+                        handleConnection(new VertxMqttConnection(endpoint));
+                    });
         }
     }
 
@@ -112,20 +112,20 @@ public class VertxMqttServer implements MqttServer {
     @Override
     public Flux<MqttConnection> handleConnection(String holder) {
         List<Sinks.Many<MqttConnection>> sinks = this
-            .sinks
-            .computeIfAbsent(holder, ignore -> new CopyOnWriteArrayList<>());
+                .sinks
+                .computeIfAbsent(holder, ignore -> new CopyOnWriteArrayList<>());
 
         Sinks.Many<MqttConnection> sink =
-            Sinks.unsafe()
-                 .many()
-                 .unicast()
-                 .onBackpressureBuffer(Queues.<MqttConnection>unboundedMultiproducer().get());
+                Sinks.unsafe()
+                        .many()
+                        .unicast()
+                        .onBackpressureBuffer(Queues.<MqttConnection>unboundedMultiproducer().get());
 
         sinks.add(sink);
 
         return sink
-            .asFlux()
-            .doOnCancel(() -> sinks.remove(sink));
+                .asFlux()
+                .doOnCancel(() -> sinks.remove(sink));
     }
 
     @Override

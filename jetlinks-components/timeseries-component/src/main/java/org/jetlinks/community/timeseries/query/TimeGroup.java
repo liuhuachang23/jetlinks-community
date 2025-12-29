@@ -44,7 +44,7 @@ public class TimeGroup extends Group{
     private long offset;
 
     public TimeGroup(Interval interval, String alias, String format) {
-        super("timestamp", alias);
+        super("timestamp",alias);
         this.interval = interval;
         this.format = format;
     }

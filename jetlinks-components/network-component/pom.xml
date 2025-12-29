@@ -16,6 +16,10 @@
         <module>mqtt-component</module>
         <module>tcp-component</module>
         <module>http-component</module>
+        <module>udp-component</module>
+        <module>simulator-component</module>
+<!--        <module>coap-component</module>-->
+<!--        <module>websocket-component</module>-->
     </modules>
 
     <artifactId>network-component</artifactId>

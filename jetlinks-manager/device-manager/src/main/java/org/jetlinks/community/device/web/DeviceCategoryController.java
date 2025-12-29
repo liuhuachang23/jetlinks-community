@@ -15,15 +15,19 @@
  */
 package org.jetlinks.community.device.web;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hswebframework.ezorm.rdb.mapping.defaults.SaveResult;
 import org.hswebframework.web.api.crud.entity.QueryNoPagingOperation;
 import org.hswebframework.web.api.crud.entity.QueryParamEntity;
 import org.hswebframework.web.api.crud.entity.TreeSupportEntity;
+import org.hswebframework.web.authorization.Authentication;
 import org.hswebframework.web.authorization.annotation.Authorize;
 import org.hswebframework.web.authorization.annotation.Resource;
+import org.hswebframework.web.authorization.annotation.SaveAction;
 import org.hswebframework.web.crud.service.ReactiveCrudService;
 import org.hswebframework.web.crud.web.reactive.ReactiveServiceCrudController;
 import org.jetlinks.community.device.entity.DeviceCategoryEntity;
@@ -31,6 +35,8 @@ import org.jetlinks.community.device.service.DeviceCategoryService;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/device/category")
@@ -82,5 +88,28 @@ public class DeviceCategoryController implements ReactiveServiceCrudController<D
     @Override
     public ReactiveCrudService<DeviceCategoryEntity, String> getService() {
         return categoryService;
+    }
+
+    @PostMapping
+    @SaveAction
+    @Operation(summary = "新增单个数据,并返回新增后的数据.")
+    public Mono<DeviceCategoryEntity> add(@RequestBody Mono<DeviceCategoryEntity> payload) {
+        return Authentication
+                .currentReactive()
+                .flatMap(auth -> payload.map(entity -> applyAuthentication(entity, auth)))
+                .switchIfEmpty(payload)
+                .flatMap(entity -> {
+                    // Generate a unique key if entity.getKey() is null
+                    String key = String.valueOf(System.currentTimeMillis());
+                    // Generate ID based on parentId
+                    String id;
+                    if (entity.getParentId() != null) {
+                        id = entity.getParentId() + key + "-";
+                    } else {
+                        id = "-" + key + "-";
+                    }
+                    entity.setId(id);
+                    return getService().insert(Mono.just(entity)).thenReturn(entity);
+                });
     }
 }

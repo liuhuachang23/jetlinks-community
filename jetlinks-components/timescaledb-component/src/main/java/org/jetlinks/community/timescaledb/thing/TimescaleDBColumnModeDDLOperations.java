@@ -45,8 +45,8 @@ public class TimescaleDBColumnModeDDLOperations extends ColumnModeDDLOperationsB
     private final  TimescaleDBThingsDataProperties properties;
 
     static Set<String> ignoreColumn = Sets.newHashSet(
-        ThingsDataConstants.COLUMN_ID,
-        ThingsDataConstants.COLUMN_MESSAGE_ID
+            ThingsDataConstants.COLUMN_ID,
+            ThingsDataConstants.COLUMN_MESSAGE_ID
     );
 
     public TimescaleDBColumnModeDDLOperations(String thingType,
@@ -69,8 +69,8 @@ public class TimescaleDBColumnModeDDLOperations extends ColumnModeDDLOperationsB
         RDBSchemaMetadata schema = database.getMetadata().getCurrentSchema();
         RDBTableMetadata table = schema.newTable(metric);
         TableBuilder builder = database
-            .ddl()
-            .createOrAlter(table);
+                .ddl()
+                .createOrAlter(table);
 
         List<String> partitions = new ArrayList<>();
         partitions.add(ThingsDataConstants.COLUMN_THING_ID);
@@ -79,65 +79,65 @@ public class TimescaleDBColumnModeDDLOperations extends ColumnModeDDLOperationsB
                 continue;
             }
             builder
-                .addColumn(property.getId())
-                .custom(column -> {
-                    ThingsDatabaseUtils.convertColumn(property, column);
-                    if (Objects
-                        .equals(ThingsDataConstants.COLUMN_TIMESTAMP, column.getName())) {
-                        column.setNotNull(true);
-                        column.setJdbcType(JDBCType.TIMESTAMP, Date.class);
-                        column.setValueCodec(new DateTimeCodec("yyyy-MM-dd HH:mm:ss.SSS", Date.class));
-                    }
-                    TimescaleDBUtils.customColumn(property,column);
-                })
-                .commit();
+                    .addColumn(property.getId())
+                    .custom(column -> {
+                        ThingsDatabaseUtils.convertColumn(property, column);
+                        if (Objects
+                                .equals(ThingsDataConstants.COLUMN_TIMESTAMP, column.getName())) {
+                            column.setNotNull(true);
+                            column.setJdbcType(JDBCType.TIMESTAMP, Date.class);
+                            column.setValueCodec(new DateTimeCodec("yyyy-MM-dd HH:mm:ss.SSS", Date.class));
+                        }
+                        TimescaleDBUtils.customColumn(property,column);
+                    })
+                    .commit();
         }
 
         if (metricType == MetricType.properties) {
             //索引
             builder
-                .index()
-                .name("idx_" + metric + "_prop_id")
-                .column(metricBuilder.getThingIdProperty())
-                .column(ThingsDataConstants.COLUMN_TIMESTAMP, RDBIndexMetadata.IndexSort.desc)
-                .unique()
-                .commit();
+                    .index()
+                    .name("idx_" + metric + "_prop_id")
+                    .column(metricBuilder.getThingIdProperty())
+                    .column(ThingsDataConstants.COLUMN_TIMESTAMP, RDBIndexMetadata.IndexSort.desc)
+                    .unique()
+                    .commit();
         } else if (metricType == MetricType.event && settings.getEvent().eventIsAllInOne()) {
             partitions.add(ThingsDataConstants.COLUMN_EVENT_ID);
             //索引
             builder
-                .index()
-                .name("idx_" + metric + "_event_id")
-                .column(metricBuilder.getThingIdProperty())
-                .column(ThingsDataConstants.COLUMN_EVENT_ID)
-                .column(ThingsDataConstants.COLUMN_TIMESTAMP, RDBIndexMetadata.IndexSort.desc)
-                .unique()
-                .commit();
+                    .index()
+                    .name("idx_" + metric + "_event_id")
+                    .column(metricBuilder.getThingIdProperty())
+                    .column(ThingsDataConstants.COLUMN_EVENT_ID)
+                    .column(ThingsDataConstants.COLUMN_TIMESTAMP, RDBIndexMetadata.IndexSort.desc)
+                    .unique()
+                    .commit();
         } else if (metricType == MetricType.log) {
             //索引
             builder
-                .index()
-                .name("idx_" + metric + "_log_id")
-                .column(metricBuilder.getThingIdProperty())
-                .column(ThingsDataConstants.COLUMN_LOG_TYPE)
-                .commit();
+                    .index()
+                    .name("idx_" + metric + "_log_id")
+                    .column(metricBuilder.getThingIdProperty())
+                    .column(ThingsDataConstants.COLUMN_LOG_TYPE)
+                    .commit();
         }
 
         table.addFeature(new CreateHypertable(ThingsDataConstants.COLUMN_TIMESTAMP, this.properties.getChunkTimeInterval()));
 
         if (ddl) {
             return builder
-                .commit()
-                .reactive()
-                .then()
-                .contextWrite(ctx -> ctx.put(Logger.class, log));
+                    .commit()
+                    .reactive()
+                    .then()
+                    .contextWrite(ctx -> ctx.put(Logger.class, log));
         }
         return schema
-            .getTableReactive(metric, true)
-            .doOnNext(oldTable -> oldTable.replace(table))
-            .switchIfEmpty(Mono.fromRunnable(() -> schema.addTable(table)))
-            .then()
-            .contextWrite(ctx -> ctx.put(Logger.class, log));
+                .getTableReactive(metric, true)
+                .doOnNext(oldTable -> oldTable.replace(table))
+                .switchIfEmpty(Mono.fromRunnable(() -> schema.addTable(table)))
+                .then()
+                .contextWrite(ctx -> ctx.put(Logger.class, log));
     }
 
     @Override

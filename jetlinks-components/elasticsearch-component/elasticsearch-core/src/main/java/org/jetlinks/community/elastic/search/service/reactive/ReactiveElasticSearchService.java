@@ -270,8 +270,11 @@ public class ReactiveElasticSearchService implements ElasticSearchService, Comma
                 .createSearchRequest(queryParam, inx)
                 .flatMap(request -> restClient.execute(
                     client -> client
-                        .deleteByQuery(q -> q.query(request.query())
-                                             .index(request.index()))
+                        .deleteByQuery(q -> q
+                            .query(request.query())
+                            .ignoreUnavailable(request.ignoreUnavailable())
+                            .allowNoIndices(request.allowNoIndices())
+                            .index(request.index()))
                         .deleted()))
                 .defaultIfEmpty(0L));
     }
